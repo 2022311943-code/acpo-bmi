@@ -501,9 +501,9 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
         }
         @media print {
             * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
                 color: #000 !important;
-                background-color: transparent !important;
-                background: transparent !important;
                 box-shadow: none !important;
                 text-shadow: none !important;
             }
@@ -518,6 +518,27 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
             body {
                 background: white !important;
             }
+            .bmi-container {
+                width: 100% !important;
+                max-width: 1300px !important;
+                margin: 0 auto !important;
+            }
+            .left-col { width: 26% !important; }
+            .right-col { width: 74% !important; }
+            .pic-box { padding: 5px !important; }
+            .pic-box img { background-color: transparent !important; }
+            
+            /* Tighter spacing in print to prevent photo box from shrinking vertically */
+            .view-label { padding: 1px 0 !important; font-size: 0.7rem !important; }
+            .class-standard { padding: 2px !important; }
+            .class-standard div[style*="min-height: 40px"] { min-height: 25px !important; font-size: 0.7rem !important; }
+            .m-auto.py-2 { padding-top: 1px !important; padding-bottom: 1px !important; }
+            .data-row { padding-top: 2px !important; padding-bottom: 2px !important; }
+            
+            /* Adjust view label widths in print */
+            .view-label:nth-child(1), .view-label:nth-child(3) { flex: 0 0 30% !important; }
+            .view-label:nth-child(2) { flex: 1 !important; }
+        }
         }
 
         .small-text {
@@ -535,13 +556,13 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
         }
 
         .left-col {
-            width: 40%;
+            width: 28%;
             display: flex;
             flex-direction: column;
         }
 
         .right-col {
-            width: 60%;
+            width: 72%;
             display: flex;
             flex-direction: column;
         }
@@ -559,7 +580,7 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
             justify-content: center;
             text-align: center;
             font-weight: bold;
-            padding: 20px;
+            padding: 5px;
             cursor: pointer;
             position: relative;
             overflow: hidden;
@@ -578,7 +599,6 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
             top: 0;
             left: 0;
             z-index: 1;
-            background-color: #f0f0f0;
         }
         
         .pic-box span {
@@ -1401,21 +1421,16 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                             <div class="left-col border-end border-black">
                                 <div class="pics-area bg-lavender">
                                     <?php 
-                                    $imgs = ['1'=>'right', '2'=>'front', '3'=>'left'];
-                                    foreach($imgs as $num => $type): 
-                                        $dbKey = 'img_'.$type;
-                                        $hasImg = !empty($user_data[$dbKey]);
-                                        $src = $hasImg ? $user_data[$dbKey] : '';
-                                        $label = ucfirst($type) . ' View';
+                                    $hasImg = !empty($user_data['img_front']);
+                                    $src = $hasImg ? $user_data['img_front'] : '';
                                     ?>
-                                    <div class="pic-box border-end border-black border-bottom border-black" onclick="<?php echo $is_admin ? "document.getElementById('img-upload-$num').click()" : ''; ?>">
-                                        <span id="img-text-<?php echo $num; ?>" class="<?php echo $hasImg ? 'd-none' : ''; ?>"><?php echo $hasImg ? '' : "Upload $label Here"; ?></span>
-                                        <img id="img-preview-<?php echo $num; ?>" src="<?php echo $src; ?>" alt="<?php echo $label; ?>" class="<?php echo $hasImg ? '' : 'd-none'; ?>">
+                                    <div class="pic-box border-bottom border-black w-100 h-100" onclick="<?php echo $is_admin ? "document.getElementById('img-upload-all').click()" : ''; ?>">
+                                        <span id="img-text-all" class="<?php echo $hasImg ? 'd-none' : ''; ?>"><?php echo $hasImg ? '' : "Upload Full Body Photo Here"; ?></span>
+                                        <img id="img-preview-all" src="<?php echo $src; ?>" alt="Physical View" class="<?php echo $hasImg ? '' : 'd-none'; ?>">
                                         <?php if ($is_admin): ?>
-                                        <input type="file" name="img_<?php echo $type; ?>" id="img-upload-<?php echo $num; ?>" class="d-none" accept="image/*" onchange="previewImage(this, 'img-preview-<?php echo $num; ?>', 'img-text-<?php echo $num; ?>')">
+                                        <input type="file" name="img_front" id="img-upload-all" class="d-none" accept="image/*" onchange="previewImage(this, 'img-preview-all', 'img-text-all')">
                                         <?php endif; ?>
                                     </div>
-                                    <?php endforeach; ?>
                                 </div>
                                 <div class="d-flex text-center border-bottom border-black fw-bold small-text bg-white">
                                     <div class="view-label border-end border-black">Right View</div>
@@ -1423,17 +1438,19 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                                     <div class="view-label">Left View</div>
                                 </div>
                                 <div class="text-center fw-bold py-1 border-bottom border-black small-text bg-white">BMI CLASSIFICATION</div>
-                                <div class="d-flex classification-box">
-                                    <div class="class-standard border-end border-black bg-lavender small-text">
-                                        <span class="fw-bold">PNP BMI ACCEPTABLE STANDARD:</span>
-                                        <div class="m-auto fw-bold fs-6 mt-3">
+                                <div class="d-flex classification-box text-center">
+                                    <div class="class-standard border-end border-black bg-lavender small-text d-flex flex-column">
+                                        <div class="fw-bold d-flex align-items-center justify-content-center px-1" style="min-height: 40px; border-bottom: 1px solid rgba(0,0,0,0.1);">PNP BMI ACCEPTABLE STANDARD:</div>
+                                        <div class="m-auto py-2 fw-bold fs-6">
                                             <span class="editable-text" id="text-class"><?php echo hval($health_data, 'bmi_classification'); ?></span>
                                             <input type="text" name="bmi_classification" class="form-control form-control-sm d-none editable-input" id="input-class" value="<?php echo hval($health_data, 'bmi_classification'); ?>">
                                         </div>
                                     </div>
-                                    <div class="class-standard bg-white small-text">
-                                        <span class="fw-bold">WHO Standard</span>
-                                        <span class="m-auto fw-bold fs-6 mt-3" id="text-who-class"><?php echo hval($health_data, 'bmi_classification'); ?></span>
+                                    <div class="class-standard bg-white small-text d-flex flex-column">
+                                        <div class="fw-bold d-flex align-items-center justify-content-center px-1" style="min-height: 40px; border-bottom: 1px solid rgba(0,0,0,0.1);">WHO Standard</div>
+                                        <div class="m-auto py-2 fw-bold fs-6">
+                                            <span class="m-auto fw-bold" id="text-who-class"><?php echo hval($health_data, 'bmi_classification'); ?></span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
