@@ -291,208 +291,24 @@ if ($is_admin) {
                 'ARDDO' => '#2196f3', // Light Blue
                 'CPPU'  => '#4caf50', // Bright Green
                 'GSO'   => '#795548', // Brown
-                'DEU'   => '#607d8b'  // Blue Gray
+                'DEU'   => '#607d8b', // Blue Gray
+                'TEU'   => '#008080'  // Teal
             ];
             return $unitMap[$unitName] ?? '#6c757d'; // Default gray
         }
 
-    } catch (PDOException $e) {
-        $users_list = [];
-    }
-} else {
-    // For Regular Users: Fetch their own data for Health Record display
-    $user_data = [];
-    $health_data = [];
-    $age = 0;
-
-    try {
-        // Get User Details
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$_SESSION['user_id']]);
-        $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($user_data) {
-            // Calculate Age
-            if ($user_data['birthday']) {
-                $dob = new DateTime($user_data['birthday']);
-                $now = new DateTime();
-                $age = $now->diff($dob)->y;
-            } else {
-                $age = $user_data['age'] ?? 0;
-            }
-
-            // Handle Filter Values
-            $selected_month = isset($_GET['month']) ? $_GET['month'] : date('m');
-            $selected_year = isset($_GET['year']) ? $_GET['year'] : date('Y');
-            $filter_date = "$selected_year-$selected_month-01";
-
-            // Get Health Record for specific month/year (for the main results)
-            $stmt = $pdo->prepare("SELECT * FROM health_records WHERE user_id = ? AND MONTH(date_taken) = ? AND YEAR(date_taken) = ? ORDER BY date_taken DESC LIMIT 1");
-            $stmt->execute([$_SESSION['user_id'], $selected_month, $selected_year]);
-            $health_data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            // Fetch ALL historical records to build a complete weight picture
-            $stmt = $pdo->prepare("SELECT weight, monthly_weights, date_taken FROM health_records WHERE user_id = ? ORDER BY date_taken ASC");
-            $stmt->execute([$user_data['id']]);
-            $all_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            $json_weights = [];
-            $record_weights = [];
-            foreach ($all_records as $rec) {
-                // Collect Record Weight (Primary)
-                $m_key_rec = date('Y-m', strtotime($rec['date_taken']));
-                if (!empty($rec['weight']) && $rec['weight'] > 0) {
-                    $record_weights[$m_key_rec] = $rec['weight'];
-                }
-
-                // Collect Monitoring Weights (Filler)
-                $weights_json = json_decode($rec['monthly_weights'] ?? '[]', true);
-                if (is_array($weights_json)) {
-                    foreach ($weights_json as $mk => $wv) {
-                        if (!empty($wv)) {
-                            $json_weights[$mk] = $wv;
-                        }
-                    }
-                }
-            }
-            // RECORD weights always win over JSON historical weights
-            $cumulative_weights = array_merge($json_weights, $record_weights);
-
-            // FILTER correctly for display: Show NO weights AFTER the selected date
-            $display_weights = [];
-            foreach ($cumulative_weights as $mk => $wv) {
-                $check_date = $mk . "-01";
-                if (strtotime($check_date) <= strtotime($filter_date)) {
-                    $display_weights[$mk] = $wv;
-                }
-            }
-            $monthly_weights = $display_weights;
-
-            // Prepare Progress Chart Data
-            $chartMonths = array_keys($cumulative_weights);
-            sort($chartMonths);
-            
-            $latestHeight = $health_data['height'] ?? 0;
-            if (!$latestHeight) {
-                foreach($all_records as $r) {
-                    if (!empty($r['height'])) { $latestHeight = $r['height']; break; }
-                }
-            }
-
-            $bmiData = [];
-            $labels = [];
-            foreach ($chartMonths as $m) {
-                $w = $cumulative_weights[$m];
-                if ($latestHeight > 0) {
-                    $hM = $latestHeight / 100;
-                    $bmi = $w / ($hM * $hM);
-                    $bmiData[] = round($bmi, 2);
-                    $labels[] = date('M Y', strtotime($m . "-01"));
-                }
-            }
-
-            // Age Threshold
-            $thresholdVal = 24.9;
-            if ($age >= 30 && $age <= 34) $thresholdVal = 25.0;
-            elseif ($age >= 35 && $age <= 39) $thresholdVal = 25.5;
-            elseif ($age >= 40 && $age <= 44) $thresholdVal = 26.0;
-            elseif ($age >= 45 && $age <= 50) $thresholdVal = 26.5;
-            elseif ($age >= 51) $thresholdVal = 27.0;
-
-            $thresholdData = array_fill(0, count($bmiData), $thresholdVal);
-            $normalLine = array_fill(0, count($bmiData), 24.9);
-        }
-    } catch (PDOException $e) {
-        $monthly_weights = [];
-    }
-}
-
-// Helper for safe display (same as in editor.php)
-function hval($data, $key, $default = '') {
-    return isset($data[$key]) && $data[$key] !== '' ? htmlspecialchars($data[$key]) : $default;
-}
-function hval_raw($data, $key, $default = '') {
-    return isset($data[$key]) ? $data[$key] : $default;
-}
-function getRankAcronym($rank) {
-    if (preg_match('/\((.*?)\)/', $rank, $matches)) {
-        return $matches[1];
-    }
-    return $rank;
-}
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACPO - Main Dashboard</title>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
-    <style>
-        @font-face {
-            font-family: 'Agrandir';
-            src: url('fonts/Agrandir-Bold.woff2') format('woff2'),
-                 url('fonts/Agrandir-Bold.woff') format('woff');
-        $stmt->execute($params_comp);
-        $compliance_summary['completed'] = $stmt->fetchColumn();
-
-        if ($compliance_summary['total'] > 0) {
-            $compliance_summary['rate'] = round(($compliance_summary['completed'] / $compliance_summary['total']) * 100);
-        }
-
-        // 2. Units Ranking (Always keep top 5 globally for context, OR filter if requested)
-        // Let's keep it global so the admin can see where they stand, but we could also filter it.
-        // The user said "compliance rate... should show of that office only".
-        // The list below is "Units with Most Non-Compliant". If one unit is selected, maybe we show only that unit's detail?
-        // Let's modify it to only show the selected unit if the filter is active.
-        $nc_sql = "
-            SELECT u.unit, COUNT(*) as nc_count
-            FROM users u
-            INNER JOIN health_records h ON u.id = h.user_id
-            WHERE u.role = 'user' 
-              AND MONTH(h.date_taken) = ? 
-              AND YEAR(h.date_taken) = ?
-              AND h.bmi_classification NOT IN ('NORMAL', 'ACCEPTABLE BMI')
-              AND u.unit IS NOT NULL AND u.unit != ''
-        ";
-        if (!empty($selected_unit)) {
-            $nc_sql .= " AND u.unit = ?";
-            $nc_params = [$selected_month, $selected_year, $selected_unit];
-        } else {
-            $nc_params = [$selected_month, $selected_year];
-        }
-        $nc_sql .= " GROUP BY u.unit ORDER BY nc_count DESC LIMIT 5";
-        
-        $stmt = $pdo->prepare($nc_sql);
-        $stmt->execute($nc_params);
-        $unit_compliance_rankings = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Helper to get unit color
-        function getUnitColor($unitName) {
-            $unitMap = [
-                'CHQ'   => '#1700ad', // Navy
-                'PS1'   => '#0d6efd', // Blue
-                'PS2'   => '#6610f2', // Indigo
-                'PS3'   => '#6f42c1', // Purple
-                'PS4'   => '#d63384', // Pink
-                'PS5'   => '#dc3545', // Red
-                'PS6'   => '#fd7e14', // Orange
-                'CMFC'  => '#ff8c00', // Dark Orange
-                'TPU'   => '#198754', // Green
-                'MPU'   => '#20c997'  // Teal
-            ];
-            return $unitMap[$unitName] ?? '#6c757d'; // Default gray
-        }
+        // Define $units for the filter dropdowns by extracting from current user list
+        $units = array_unique(array_filter(array_map('trim', array_column($users_list, 'unit'))));
+        sort($units);
+        // Ensure standard units are always available in the filter even if no users are currenty in them
+        $default_units = ['CHQ', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6', 'CMFC', 'TPU', 'MPU', 'CARMU', 'CIU', 'AOMU', 'CCADU', 'ARDDO', 'CPPU', 'GSO', 'DEU', 'TEU'];
+        $units = array_unique(array_merge($units, $default_units));
+        sort($units);
 
     } catch (PDOException $e) {
         $users_list = [];
+        $units = ['CHQ', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6', 'CMFC', 'TPU', 'MPU', 'CARMU', 'CIU', 'AOMU', 'CCADU', 'ARDDO', 'CPPU', 'GSO', 'DEU', 'TEU'];
+        sort($units);
     }
 } else {
     // For Regular Users: Fetch their own data for Health Record display
@@ -2174,6 +1990,7 @@ function getRankAcronym($rank) {
                                                 <option value="CPPU">
                                                 <option value="GSO">
                                                 <option value="DEU">
+                                                <option value="TEU">
                                                 <option value="COMU">
                                                 <option value="ODCDO">
                                             </datalist>
@@ -2302,6 +2119,7 @@ function getRankAcronym($rank) {
                                                 <option value="CPPU">CPPU</option>
                                                 <option value="GSO">GSO</option>
                                                 <option value="DEU">DEU</option>
+                                                <option value="TEU">TEU</option>
                                                 <option value="COMU">COMU</option>
                                                 <option value="ODCDO">ODCDO</option>
                                             </select>

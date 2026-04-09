@@ -1474,8 +1474,8 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                                             <option value="PS4"><option value="PS5"><option value="PS6"><option value="CMFC">
                                             <option value="TPU"><option value="CIU"><option value="MPU"><option value="CARMU">
                                             <option value="AOMU"><option value="CCADU"><option value="ARDDO"><option value="CPPU">
-                                            <option value="GSO"><option value="DEU">
-                                            <option value="COMU"><option value="ODCDO">
+                                            <option value="GSO"><option value="DEU"><option value="TEU"><option value="COMU">
+                                            <option value="ODCDO">
                                         </datalist>
                                     </div>
                                 </div>
