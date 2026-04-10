@@ -1872,71 +1872,66 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
 
                 // Classification Logic (Same as Calculator)
                 let classification = '';
-                
-                // --- SEVERELY UNDERWEIGHT ---
+                let isAcceptable = false;
+                const age = userAge;
+
                 if (bmiNumeric < 17) {
                     classification = 'SEVERELY UNDERWEIGHT';
-                } 
-                // --- UNDERWEIGHT ---
-                else if (bmiNumeric >= 17 && bmiNumeric <= 18.4) {
-                    classification = 'UNDERWEIGHT';
-                } 
-                // --- NORMAL ---
-                else if (bmiNumeric >= 18.5 && bmiNumeric < 25) {
-                    classification = 'NORMAL';
+                } else if (age <= 29) {
+                    if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                    else if (bmiNumeric >= 18.5 && bmiNumeric < 24.9) { classification = 'NORMAL'; }
+                    else if (bmiNumeric >= 24.9 && bmiNumeric < 25) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                    else if (bmiNumeric >= 25 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                    else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                    else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                    else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                } else if (age >= 30 && age <= 34) {
+                    if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                    else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                    else if (bmiNumeric >= 25 && bmiNumeric <= 25) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                    else if (bmiNumeric > 25 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                    else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                    else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                    else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                } else if (age >= 35 && age <= 39) {
+                    if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                    else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                    else if (bmiNumeric >= 25 && bmiNumeric <= 25.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                    else if (bmiNumeric > 25.5 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                    else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                    else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                    else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                } else if (age >= 40 && age <= 44) {
+                    if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                    else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                    else if (bmiNumeric >= 25 && bmiNumeric <= 26) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                    else if (bmiNumeric > 26 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                    else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                    else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                    else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                } else if (age >= 45 && age <= 50) {
+                    if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                    else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                    else if (bmiNumeric >= 25 && bmiNumeric <= 26.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                    else if (bmiNumeric > 26.5 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                    else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                    else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                    else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                } else if (age >= 51) {
+                    if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                    else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                    else if (bmiNumeric >= 25 && bmiNumeric <= 27) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                    else if (bmiNumeric > 27 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                    else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                    else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                    else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
                 }
-                else {
-                    // --- Age Dependent Logic ---
-                    let isAcceptable = false;
-                    const age = userAge;
-                    
-                    if (age <= 29) {
-                            if (bmiNumeric >= 25 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; }
-                            else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; }
-                            else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; }
-                            else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
-                    }
-                    else if (age >= 30 && age <= 34) {
-                        if (bmiNumeric >= 25 && bmiNumeric <= 25) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
-                        else if (bmiNumeric > 25 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; }
-                        else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; }
-                        else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; }
-                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
-                    }
-                    else if (age >= 35 && age <= 39) {
-                        if (bmiNumeric >= 25 && bmiNumeric <= 25.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
-                        else if (bmiNumeric > 25.5 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; }
-                        else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; }
-                        else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; }
-                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
-                    }
-                    else if (age >= 40 && age <= 44) {
-                        if (bmiNumeric >= 25 && bmiNumeric <= 26) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
-                        else if (bmiNumeric > 26 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; }
-                        else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; }
-                        else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; }
-                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
-                    }
-                    else if (age >= 45 && age <= 50) {
-                        if (bmiNumeric >= 25 && bmiNumeric <= 26.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
-                        else if (bmiNumeric > 26.5 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; }
-                        else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; }
-                        else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; }
-                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
-                    }
-                    else if (age >= 51) {
-                        if (bmiNumeric >= 25 && bmiNumeric <= 27) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
-                        else if (bmiNumeric > 27 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; }
-                        else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
-                        else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; }
-                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
-                    }
-                    
-                    if (!classification && !isAcceptable) {
-                        if (bmiNumeric < 25) { classification = 'NORMAL'; }
-                        else if (bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
-                        else { classification = 'OBESE CLASS 1'; }
-                    }
+
+                if (!classification) {
+                    if (bmiNumeric < 18.5) classification = 'UNDERWEIGHT';
+                    else if (bmiNumeric < 25) classification = 'NORMAL';
+                    else if (bmiNumeric < 30) classification = 'OVERWEIGHT';
+                    else classification = 'OBESE CLASS 1';
                 }
 
                 // Normal Weight Logic (Based on BMI 18.5 - 24.9)
@@ -2175,74 +2170,75 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                     // Classification Logic
                     let classification = '';
                     let badgeColor = '';
-                    
-                    // --- SEVERELY UNDERWEIGHT ---
+                    let isAcceptable = false;
+
                     if (bmiNumeric < 17) {
                         classification = 'SEVERELY UNDERWEIGHT';
-                        badgeColor = '#FF00FF'; // Magenta
-                    } 
-                    // --- UNDERWEIGHT ---
-                    else if (bmiNumeric >= 17 && bmiNumeric <= 18.4) {
-                        classification = 'UNDERWEIGHT';
-                        badgeColor = '#0000FF'; // Blue
-                    } 
-                    // --- NORMAL ---
-                    else if (bmiNumeric >= 18.5 && bmiNumeric < 25) {
-                        classification = 'NORMAL';
-                        badgeColor = '#00FF00'; // Green
+                    } else if (age <= 29) {
+                        if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                        else if (bmiNumeric >= 18.5 && bmiNumeric < 24.9) { classification = 'NORMAL'; }
+                        else if (bmiNumeric >= 24.9 && bmiNumeric < 25) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                        else if (bmiNumeric >= 25 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                        else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                        else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                    } else if (age >= 30 && age <= 34) {
+                        if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                        else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                        else if (bmiNumeric >= 25 && bmiNumeric <= 25) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                        else if (bmiNumeric > 25 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                        else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                        else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                    } else if (age >= 35 && age <= 39) {
+                        if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                        else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                        else if (bmiNumeric >= 25 && bmiNumeric <= 25.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                        else if (bmiNumeric > 25.5 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                        else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                        else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                    } else if (age >= 40 && age <= 44) {
+                        if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                        else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                        else if (bmiNumeric >= 25 && bmiNumeric <= 26) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                        else if (bmiNumeric > 26 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                        else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                        else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                    } else if (age >= 45 && age <= 50) {
+                        if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                        else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                        else if (bmiNumeric >= 25 && bmiNumeric <= 26.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                        else if (bmiNumeric > 26.5 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                        else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                        else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
+                    } else if (age >= 51) {
+                        if (bmiNumeric >= 17 && bmiNumeric < 18.5) { classification = 'UNDERWEIGHT'; }
+                        else if (bmiNumeric >= 18.5 && bmiNumeric < 25) { classification = 'NORMAL'; }
+                        else if (bmiNumeric >= 25 && bmiNumeric <= 27) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; }
+                        else if (bmiNumeric > 27 && bmiNumeric < 30) { classification = 'OVERWEIGHT'; }
+                        else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; }
+                        else if (bmiNumeric >= 35 && bmiNumeric < 40) { classification = 'OBESE CLASS 2'; }
+                        else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; }
                     }
-                    else {
-                        // --- Age Dependent Logic ---
-                        let isAcceptable = false;
-                        
-                        if (age <= 29) {
-                             if (bmiNumeric >= 25 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; badgeColor = '#FFFF00'; }
-                             else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; badgeColor = '#FFCC00'; }
-                             else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; badgeColor = '#FF9900'; }
-                             else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; badgeColor = '#FF0000'; }
-                        }
-                        else if (age >= 30 && age <= 34) {
-                            if (bmiNumeric >= 25 && bmiNumeric <= 25) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; badgeColor = '#00FFFF'; }
-                            else if (bmiNumeric > 25 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; badgeColor = '#FFFF00'; }
-                            else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; badgeColor = '#FFCC00'; }
-                            else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; badgeColor = '#FF9900'; }
-                            else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; badgeColor = '#FF0000'; }
-                        }
-                        else if (age >= 35 && age <= 39) {
-                            if (bmiNumeric >= 25 && bmiNumeric <= 25.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; badgeColor = '#00FFFF'; }
-                            else if (bmiNumeric > 25.5 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; badgeColor = '#FFFF00'; }
-                            else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; badgeColor = '#FFCC00'; }
-                            else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; badgeColor = '#FF9900'; }
-                            else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; badgeColor = '#FF0000'; }
-                        }
-                        else if (age >= 40 && age <= 44) {
-                            if (bmiNumeric >= 25 && bmiNumeric <= 26) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; badgeColor = '#00FFFF'; }
-                            else if (bmiNumeric > 26 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; badgeColor = '#FFFF00'; }
-                            else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; badgeColor = '#FFCC00'; }
-                            else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; badgeColor = '#FF9900'; }
-                            else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; badgeColor = '#FF0000'; }
-                        }
-                        else if (age >= 45 && age <= 50) {
-                            if (bmiNumeric >= 25 && bmiNumeric <= 26.5) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; badgeColor = '#00FFFF'; }
-                            else if (bmiNumeric > 26.5 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; badgeColor = '#FFFF00'; }
-                            else if (bmiNumeric >= 30 && bmiNumeric <= 34.9) { classification = 'OBESE CLASS 1'; badgeColor = '#FFCC00'; }
-                            else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; badgeColor = '#FF9900'; }
-                            else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; badgeColor = '#FF0000'; }
-                        }
-                        else if (age >= 51) {
-                            if (bmiNumeric >= 25 && bmiNumeric <= 27) { classification = 'ACCEPTABLE BMI'; isAcceptable = true; badgeColor = '#00FFFF'; }
-                            else if (bmiNumeric > 27 && bmiNumeric <= 29.9) { classification = 'OVERWEIGHT'; badgeColor = '#FFFF00'; }
-                            else if (bmiNumeric >= 30 && bmiNumeric < 35) { classification = 'OBESE CLASS 1'; badgeColor = '#FFCC00'; }
-                            else if (bmiNumeric >= 35 && bmiNumeric <= 39.9) { classification = 'OBESE CLASS 2'; badgeColor = '#FF9900'; }
-                            else if (bmiNumeric >= 40) { classification = 'OBESE CLASS 3'; badgeColor = '#FF0000'; }
-                        }
-                        
-                        if (!classification && !isAcceptable) {
-                            if (bmiNumeric < 25) { classification = 'NORMAL'; badgeColor = '#00FF00'; }
-                            else if (bmiNumeric < 30) { classification = 'OVERWEIGHT'; badgeColor = '#FFFF00'; }
-                            else { classification = 'OBESE CLASS 1'; badgeColor = '#FFCC00'; }
-                        }
+
+                    if (!classification) {
+                        if (bmiNumeric < 18.5) classification = 'UNDERWEIGHT';
+                        else if (bmiNumeric < 25) classification = 'NORMAL';
+                        else if (bmiNumeric < 30) classification = 'OVERWEIGHT';
+                        else classification = 'OBESE CLASS 1';
                     }
+
+                    if (classification === 'SEVERELY UNDERWEIGHT') badgeColor = '#FF00FF';
+                    else if (classification === 'UNDERWEIGHT') badgeColor = '#0000FF';
+                    else if (classification === 'NORMAL') badgeColor = '#00FF00';
+                    else if (classification === 'ACCEPTABLE BMI') badgeColor = '#00FFFF';
+                    else if (classification === 'OVERWEIGHT') badgeColor = '#FFFF00';
+                    else if (classification === 'OBESE CLASS 1') badgeColor = '#FFCC00';
+                    else if (classification === 'OBESE CLASS 2') badgeColor = '#FF9900';
+                    else if (classification === 'OBESE CLASS 3') badgeColor = '#FF0000';
 
                     // Package Logic
                     let packageCode = '';

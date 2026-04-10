@@ -291,24 +291,208 @@ if ($is_admin) {
                 'ARDDO' => '#2196f3', // Light Blue
                 'CPPU'  => '#4caf50', // Bright Green
                 'GSO'   => '#795548', // Brown
-                'DEU'   => '#607d8b', // Blue Gray
-                'TEU'   => '#008080'  // Teal
+                'DEU'   => '#607d8b'  // Blue Gray
             ];
             return $unitMap[$unitName] ?? '#6c757d'; // Default gray
         }
 
-        // Define $units for the filter dropdowns by extracting from current user list
-        $units = array_unique(array_filter(array_map('trim', array_column($users_list, 'unit'))));
-        sort($units);
-        // Ensure standard units are always available in the filter even if no users are currenty in them
-        $default_units = ['CHQ', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6', 'CMFC', 'TPU', 'MPU', 'CARMU', 'CIU', 'AOMU', 'CCADU', 'ARDDO', 'CPPU', 'GSO', 'DEU', 'TEU'];
-        $units = array_unique(array_merge($units, $default_units));
-        sort($units);
+    } catch (PDOException $e) {
+        $users_list = [];
+    }
+} else {
+    // For Regular Users: Fetch their own data for Health Record display
+    $user_data = [];
+    $health_data = [];
+    $age = 0;
+
+    try {
+        // Get User Details
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user_data) {
+            // Calculate Age
+            if ($user_data['birthday']) {
+                $dob = new DateTime($user_data['birthday']);
+                $now = new DateTime();
+                $age = $now->diff($dob)->y;
+            } else {
+                $age = $user_data['age'] ?? 0;
+            }
+
+            // Handle Filter Values
+            $selected_month = isset($_GET['month']) ? $_GET['month'] : date('m');
+            $selected_year = isset($_GET['year']) ? $_GET['year'] : date('Y');
+            $filter_date = "$selected_year-$selected_month-01";
+
+            // Get Health Record for specific month/year (for the main results)
+            $stmt = $pdo->prepare("SELECT * FROM health_records WHERE user_id = ? AND MONTH(date_taken) = ? AND YEAR(date_taken) = ? ORDER BY date_taken DESC LIMIT 1");
+            $stmt->execute([$_SESSION['user_id'], $selected_month, $selected_year]);
+            $health_data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Fetch ALL historical records to build a complete weight picture
+            $stmt = $pdo->prepare("SELECT weight, monthly_weights, date_taken FROM health_records WHERE user_id = ? ORDER BY date_taken ASC");
+            $stmt->execute([$user_data['id']]);
+            $all_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $json_weights = [];
+            $record_weights = [];
+            foreach ($all_records as $rec) {
+                // Collect Record Weight (Primary)
+                $m_key_rec = date('Y-m', strtotime($rec['date_taken']));
+                if (!empty($rec['weight']) && $rec['weight'] > 0) {
+                    $record_weights[$m_key_rec] = $rec['weight'];
+                }
+
+                // Collect Monitoring Weights (Filler)
+                $weights_json = json_decode($rec['monthly_weights'] ?? '[]', true);
+                if (is_array($weights_json)) {
+                    foreach ($weights_json as $mk => $wv) {
+                        if (!empty($wv)) {
+                            $json_weights[$mk] = $wv;
+                        }
+                    }
+                }
+            }
+            // RECORD weights always win over JSON historical weights
+            $cumulative_weights = array_merge($json_weights, $record_weights);
+
+            // FILTER correctly for display: Show NO weights AFTER the selected date
+            $display_weights = [];
+            foreach ($cumulative_weights as $mk => $wv) {
+                $check_date = $mk . "-01";
+                if (strtotime($check_date) <= strtotime($filter_date)) {
+                    $display_weights[$mk] = $wv;
+                }
+            }
+            $monthly_weights = $display_weights;
+
+            // Prepare Progress Chart Data
+            $chartMonths = array_keys($cumulative_weights);
+            sort($chartMonths);
+            
+            $latestHeight = $health_data['height'] ?? 0;
+            if (!$latestHeight) {
+                foreach($all_records as $r) {
+                    if (!empty($r['height'])) { $latestHeight = $r['height']; break; }
+                }
+            }
+
+            $bmiData = [];
+            $labels = [];
+            foreach ($chartMonths as $m) {
+                $w = $cumulative_weights[$m];
+                if ($latestHeight > 0) {
+                    $hM = $latestHeight / 100;
+                    $bmi = $w / ($hM * $hM);
+                    $bmiData[] = round($bmi, 2);
+                    $labels[] = date('M Y', strtotime($m . "-01"));
+                }
+            }
+
+            // Age Threshold
+            $thresholdVal = 24.9;
+            if ($age >= 30 && $age <= 34) $thresholdVal = 25.0;
+            elseif ($age >= 35 && $age <= 39) $thresholdVal = 25.5;
+            elseif ($age >= 40 && $age <= 44) $thresholdVal = 26.0;
+            elseif ($age >= 45 && $age <= 50) $thresholdVal = 26.5;
+            elseif ($age >= 51) $thresholdVal = 27.0;
+
+            $thresholdData = array_fill(0, count($bmiData), $thresholdVal);
+            $normalLine = array_fill(0, count($bmiData), 24.9);
+        }
+    } catch (PDOException $e) {
+        $monthly_weights = [];
+    }
+}
+
+// Helper for safe display (same as in editor.php)
+function hval($data, $key, $default = '') {
+    return isset($data[$key]) && $data[$key] !== '' ? htmlspecialchars($data[$key]) : $default;
+}
+function hval_raw($data, $key, $default = '') {
+    return isset($data[$key]) ? $data[$key] : $default;
+}
+function getRankAcronym($rank) {
+    if (preg_match('/\((.*?)\)/', $rank, $matches)) {
+        return $matches[1];
+    }
+    return $rank;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACPO - Main Dashboard</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        @font-face {
+            font-family: 'Agrandir';
+            src: url('fonts/Agrandir-Bold.woff2') format('woff2'),
+                 url('fonts/Agrandir-Bold.woff') format('woff');
+        $stmt->execute($params_comp);
+        $compliance_summary['completed'] = $stmt->fetchColumn();
+
+        if ($compliance_summary['total'] > 0) {
+            $compliance_summary['rate'] = round(($compliance_summary['completed'] / $compliance_summary['total']) * 100);
+        }
+
+        // 2. Units Ranking (Always keep top 5 globally for context, OR filter if requested)
+        // Let's keep it global so the admin can see where they stand, but we could also filter it.
+        // The user said "compliance rate... should show of that office only".
+        // The list below is "Units with Most Non-Compliant". If one unit is selected, maybe we show only that unit's detail?
+        // Let's modify it to only show the selected unit if the filter is active.
+        $nc_sql = "
+            SELECT u.unit, COUNT(*) as nc_count
+            FROM users u
+            INNER JOIN health_records h ON u.id = h.user_id
+            WHERE u.role = 'user' 
+              AND MONTH(h.date_taken) = ? 
+              AND YEAR(h.date_taken) = ?
+              AND h.bmi_classification NOT IN ('NORMAL', 'ACCEPTABLE BMI')
+              AND u.unit IS NOT NULL AND u.unit != ''
+        ";
+        if (!empty($selected_unit)) {
+            $nc_sql .= " AND u.unit = ?";
+            $nc_params = [$selected_month, $selected_year, $selected_unit];
+        } else {
+            $nc_params = [$selected_month, $selected_year];
+        }
+        $nc_sql .= " GROUP BY u.unit ORDER BY nc_count DESC LIMIT 5";
+        
+        $stmt = $pdo->prepare($nc_sql);
+        $stmt->execute($nc_params);
+        $unit_compliance_rankings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Helper to get unit color
+        function getUnitColor($unitName) {
+            $unitMap = [
+                'CHQ'   => '#1700ad', // Navy
+                'PS1'   => '#0d6efd', // Blue
+                'PS2'   => '#6610f2', // Indigo
+                'PS3'   => '#6f42c1', // Purple
+                'PS4'   => '#d63384', // Pink
+                'PS5'   => '#dc3545', // Red
+                'PS6'   => '#fd7e14', // Orange
+                'CMFC'  => '#ff8c00', // Dark Orange
+                'TPU'   => '#198754', // Green
+                'MPU'   => '#20c997'  // Teal
+            ];
+            return $unitMap[$unitName] ?? '#6c757d'; // Default gray
+        }
 
     } catch (PDOException $e) {
         $users_list = [];
-        $units = ['CHQ', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6', 'CMFC', 'TPU', 'MPU', 'CARMU', 'CIU', 'AOMU', 'CCADU', 'ARDDO', 'CPPU', 'GSO', 'DEU', 'TEU'];
-        sort($units);
     }
 } else {
     // For Regular Users: Fetch their own data for Health Record display
@@ -607,69 +791,6 @@ function getRankAcronym($rank) {
             }
         }
 
-        /* ----- Pagination ----- */
-        .pagination-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 1.25rem;
-            border-top: 1px solid #e9ecef;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        .pagination-info {
-            font-size: 0.85rem;
-            color: #6c757d;
-            font-weight: 500;
-        }
-        .pagination-controls {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
-        .pagination-controls .page-btn {
-            width: 34px;
-            height: 34px;
-            border: 1px solid #dee2e6;
-            background: #fff;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #495057;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .pagination-controls .page-btn:hover {
-            background: #e9ecef;
-            border-color: #adb5bd;
-        }
-        .pagination-controls .page-btn.active {
-            background: #1700ad;
-            color: #fff;
-            border-color: #1700ad;
-        }
-        .pagination-controls .page-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .pagination-controls .page-btn.nav-btn {
-            width: auto;
-            padding: 0 10px;
-            font-size: 0.78rem;
-        }
-        .rows-per-page select {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 4px 8px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: #495057;
-            background: #fff;
-            cursor: pointer;
-        }
         /* ----- BMI Dashboard Table CSS ----- */
         .bmi-container {
             width: 100%;
@@ -1850,11 +1971,11 @@ function getRankAcronym($rank) {
                                                                     onclick="openEditModal(<?php echo htmlspecialchars(json_encode($user)); ?>)">
                                                                 Edit
                                                             </button>
-                                                            <a href="editor.php?edit_user_id=<?php echo $user['id']; ?>&mode=edit" 
-                                                               class="btn btn-xs btn-outline-success rounded-pill px-2 py-0 fw-bold" style="font-size: 11px;"
-                                                               title="Edit Health Record">
+                                                            <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2 py-0 fw-bold" style="font-size: 11px;"
+                                                                    onclick="openBmiModeModal(<?php echo $user['id']; ?>)"
+                                                                    title="Manage BMI/Health Records">
                                                                 BMI
-                                                            </a>
+                                                            </button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1869,20 +1990,6 @@ function getRankAcronym($rank) {
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
-                            </div>
-                            <!-- Pagination -->
-                            <div class="pagination-container" id="paginationContainer">
-                                <div class="d-flex align-items-center gap-3">
-                                    <span class="pagination-info" id="paginationInfo">Showing 1-20 of 0</span>
-                                    <div class="rows-per-page">
-                                        <select id="rowsPerPage">
-                                            <option value="20" selected>20 / page</option>
-                                            <option value="50">50 / page</option>
-                                            <option value="100">100 / page</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="pagination-controls" id="paginationControls"></div>
                             </div>
                         </div>
                     </div>
@@ -1990,7 +2097,6 @@ function getRankAcronym($rank) {
                                                 <option value="CPPU">
                                                 <option value="GSO">
                                                 <option value="DEU">
-                                                <option value="TEU">
                                                 <option value="COMU">
                                                 <option value="ODCDO">
                                             </datalist>
@@ -2030,6 +2136,30 @@ function getRankAcronym($rank) {
                                             <input type="hidden" name="redirect_params" id="delete_user_form_redirect" value="<?php echo htmlspecialchars($_SERVER['QUERY_STRING']); ?>">
                                         </form>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BMI Mode Selection Modal -->
+                <div class="modal fade" id="bmiModeModal" tabindex="-1" aria-labelledby="bmiModeModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content rounded-4 border-0 shadow">
+                            <div class="modal-header border-bottom-0 pb-0">
+                                <h5 class="modal-title fw-bold text-uppercase" id="bmiModeModalLabel" style="color: #1700ad;">Select Entry Mode</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body p-4 text-center">
+                                <p class="text-secondary small mb-4">How would you like to enter the BMI and Health Data?</p>
+                                
+                                <div class="d-grid gap-3">
+                                    <a href="#" id="btnQuickMode" class="btn btn-lg btn-primary rounded-pill fw-bold shadow-sm" style="background-color: #1700ad; border-color: #1700ad;">
+                                        <i class="bi bi-lightning-charge-fill me-2"></i> Quick Mode (Monthly Batch)
+                                    </a>
+                                    <a href="#" id="btnFormMode" class="btn btn-lg btn-outline-primary rounded-pill fw-bold shadow-sm">
+                                        <i class="bi bi-file-earmark-text me-2"></i> Form Mode (Standard Editor)
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -2119,7 +2249,6 @@ function getRankAcronym($rank) {
                                                 <option value="CPPU">CPPU</option>
                                                 <option value="GSO">GSO</option>
                                                 <option value="DEU">DEU</option>
-                                                <option value="TEU">TEU</option>
                                                 <option value="COMU">COMU</option>
                                                 <option value="ODCDO">ODCDO</option>
                                             </select>
@@ -2577,6 +2706,13 @@ function getRankAcronym($rank) {
             editModal.show();
         }
 
+        function openBmiModeModal(userId) {
+            document.getElementById('btnQuickMode').href = 'quick_mode.php?edit_user_id=' + userId;
+            document.getElementById('btnFormMode').href = 'editor.php?edit_user_id=' + userId + '&mode=edit';
+            var bmiModal = new bootstrap.Modal(document.getElementById('bmiModeModal'));
+            bmiModal.show();
+        }
+
         // Bulk Delete Functions
         function updateBulkUI() {
             const checkboxes = document.querySelectorAll('.user-checkbox:checked');
@@ -2668,159 +2804,42 @@ function getRankAcronym($rank) {
         const alphabeticalSort = document.getElementById('alphabeticalSort');
 
         if (searchInput && unitFilter && statusFilter) {
-            let currentPage = 1;
-
-            function getRowsPerPage() {
-                const sel = document.getElementById('rowsPerPage');
-                return sel ? parseInt(sel.value) : 20;
-            }
-
-            // PRE-CACHE: Build a lightweight data array from the DOM once
-            const _allRows = Array.from(document.querySelectorAll('.table-masterlist tbody tr:not(.no-results)'));
-            const _rowCache = _allRows.map(row => ({
-                el: row,
-                text: Array.from(row.cells).slice(1, 10).map(c => c.textContent.toLowerCase()).join(' '),
-                unit: (row.getAttribute('data-unit') || ''),
-                status: (row.getAttribute('data-status') || ''),
-                gender: (row.getAttribute('data-gender') || '').toLowerCase(),
-                rank: (row.getAttribute('data-rank') || ''),
-                bmiClass: (row.getAttribute('data-bmi-class') || '').trim(),
-                filtered: true
-            }));
-
-            const _infoEl = document.getElementById('paginationInfo');
-            const _controlsEl = document.getElementById('paginationControls');
-            window._rowCache = _rowCache; // expose for column sort handler
-
-            // Debounce helper
-            let _searchTimer = null;
-            function debouncedFilter() {
-                clearTimeout(_searchTimer);
-                _searchTimer = setTimeout(filterTable, 200);
-            }
-
             function filterTable() {
                 const searchVal = searchInput.value.toLowerCase();
                 const unitVal = unitFilter.value;
                 const statusVal = statusFilter.value;
-                const genderVal = genderFilter ? genderFilter.value.toLowerCase() : '';
+                const genderVal = genderFilter ? genderFilter.value : '';
                 const rankVal = document.getElementById('rankFilter') ? document.getElementById('rankFilter').value : '';
-                const bmiClassVal = document.getElementById('bmiClassFilter') ? document.getElementById('bmiClassFilter').value.trim() : '';
+                const bmiClassVal = document.getElementById('bmiClassFilter') ? document.getElementById('bmiClassFilter').value : '';
+                const rows = document.querySelectorAll('tbody tr:not(.no-results)');
 
-                for (let i = 0; i < _rowCache.length; i++) {
-                    const r = _rowCache[i];
-                    r.filtered = (
-                        (!searchVal || r.text.includes(searchVal)) &&
-                        (!unitVal || r.unit.split(',').some(u => u.trim() === unitVal)) &&
-                        (!statusVal || r.status === statusVal) &&
-                        (!genderVal || r.gender === genderVal) &&
-                        (!rankVal || r.rank === rankVal) &&
-                        (!bmiClassVal || r.bmiClass === bmiClassVal)
-                    );
-                }
-                currentPage = 1;
-                paginateTable();
-            }
+                rows.forEach(row => {
+                    // Extract text for search (ignoring actions and pfp column)
+                    const rowText = Array.from(row.cells)
+                        .slice(1, 10) // Rank, Name, Age, User, Sex, Unit, BMI, Bday, Created
+                        .map(c => c.textContent.toLowerCase())
+                        .join(' ');
+                    
+                    const rowUnit = row.getAttribute('data-unit');
+                    const rowStatus = row.getAttribute('data-status');
+                    const rowGender = row.getAttribute('data-gender') || '';
+                    const rowRank = row.getAttribute('data-rank') || '';
+                    const rowBmiClass = row.getAttribute('data-bmi-class') || '';
+                    
+                    const matchesSearch = rowText.includes(searchVal);
+                    // Fixed unit matching for multiple units
+                    const matchesUnit = unitVal === "" || rowUnit.split(',').map(u => u.trim()).includes(unitVal);
+                    const matchesStatus = statusVal === "" || rowStatus === statusVal;
+                    const matchesGender = genderVal === "" || rowGender.toLowerCase() === genderVal.toLowerCase();
+                    const matchesRank = rankVal === "" || rowRank === rankVal;
+                    // Exact match for BMI Class
+                    const matchesBmiClass = bmiClassVal === "" || rowBmiClass.trim() === bmiClassVal.trim();
 
-            function paginateTable() {
-                window.paginateTable = paginateTable;
-                const perPage = getRowsPerPage();
-                const filteredRows = [];
-                
-                // Single pass: hide all, collect filtered
-                for (let i = 0; i < _rowCache.length; i++) {
-                    const r = _rowCache[i];
-                    if (r.filtered) {
-                        filteredRows.push(r.el);
-                    }
-                    r.el.style.display = 'none';
-                }
-
-                const totalFiltered = filteredRows.length;
-                const totalPages = Math.max(1, Math.ceil(totalFiltered / perPage));
-                if (currentPage > totalPages) currentPage = totalPages;
-
-                const startIdx = (currentPage - 1) * perPage;
-                const endIdx = Math.min(startIdx + perPage, totalFiltered);
-
-                // Show only current page rows
-                for (let i = startIdx; i < endIdx; i++) {
-                    filteredRows[i].style.display = '';
-                }
-
-                // Update info
-                if (_infoEl) {
-                    _infoEl.textContent = `Showing ${totalFiltered === 0 ? 0 : startIdx + 1}-${endIdx} of ${totalFiltered}`;
-                }
-
-                // Build controls with DocumentFragment (single DOM write)
-                if (_controlsEl) {
-                    const frag = document.createDocumentFragment();
-
-                    // Prev
-                    const prevBtn = document.createElement('button');
-                    prevBtn.className = 'page-btn nav-btn';
-                    prevBtn.innerHTML = '&laquo; Prev';
-                    prevBtn.disabled = currentPage <= 1;
-                    prevBtn.onclick = () => { currentPage--; paginateTable(); };
-                    frag.appendChild(prevBtn);
-
-                    // Page buttons (max 5 window)
-                    let startPage = Math.max(1, currentPage - 2);
-                    let endPage = Math.min(totalPages, startPage + 4);
-                    if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
-
-                    if (startPage > 1) {
-                        frag.appendChild(makePageBtn(1));
-                        if (startPage > 2) {
-                            const d = document.createElement('span');
-                            d.textContent = '…';
-                            d.style.cssText = 'padding:0 4px;color:#999;font-size:.85rem';
-                            frag.appendChild(d);
-                        }
-                    }
-                    for (let p = startPage; p <= endPage; p++) frag.appendChild(makePageBtn(p));
-                    if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) {
-                            const d = document.createElement('span');
-                            d.textContent = '…';
-                            d.style.cssText = 'padding:0 4px;color:#999;font-size:.85rem';
-                            frag.appendChild(d);
-                        }
-                        frag.appendChild(makePageBtn(totalPages));
-                    }
-
-                    // Next
-                    const nextBtn = document.createElement('button');
-                    nextBtn.className = 'page-btn nav-btn';
-                    nextBtn.innerHTML = 'Next &raquo;';
-                    nextBtn.disabled = currentPage >= totalPages;
-                    nextBtn.onclick = () => { currentPage++; paginateTable(); };
-                    frag.appendChild(nextBtn);
-
-                    _controlsEl.innerHTML = '';
-                    _controlsEl.appendChild(frag);
-                }
-            }
-
-            function makePageBtn(pageNum) {
-                const btn = document.createElement('button');
-                btn.className = 'page-btn' + (pageNum === currentPage ? ' active' : '');
-                btn.textContent = pageNum;
-                btn.onclick = () => { currentPage = pageNum; paginateTable(); };
-                return btn;
-            }
-
-            // Rows-per-page change
-            const rowsPerPageSel = document.getElementById('rowsPerPage');
-            if (rowsPerPageSel) {
-                rowsPerPageSel.addEventListener('change', function() {
-                    currentPage = 1;
-                    paginateTable();
+                    row.style.display = (matchesSearch && matchesUnit && matchesStatus && matchesGender && matchesRank && matchesBmiClass) ? '' : 'none';
                 });
             }
 
-            searchInput.addEventListener('keyup', debouncedFilter);
+            searchInput.addEventListener('keyup', filterTable);
             unitFilter.addEventListener('change', function() {
                 filterTable();
                 updateActiveFilterLabel();
@@ -2880,16 +2899,9 @@ function getRankAcronym($rank) {
                     
                     rows.forEach(row => tbody.appendChild(row));
                     
+                    // Clear header sort indicators since we're using custom sort
                     const headers = table.querySelectorAll('thead th');
                     headers.forEach(h => h.classList.remove('asc', 'desc'));
-
-                    // Re-sync cache order to match new DOM order
-                    const newOrder = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
-                    _rowCache.sort((a, b) => newOrder.indexOf(a.el) - newOrder.indexOf(b.el));
-
-                    // Re-paginate after sort
-                    currentPage = 1;
-                    paginateTable();
                 });
             }
 
@@ -2929,13 +2941,6 @@ function getRankAcronym($rank) {
                         header.classList.toggle('desc', isAsc);
                         
                         rows.forEach(row => tbody.appendChild(row));
-
-                        // Re-sync cache order and re-paginate
-                        if (window.paginateTable && window._rowCache) {
-                            const newOrder = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
-                            window._rowCache.sort((a, b) => newOrder.indexOf(a.el) - newOrder.indexOf(b.el));
-                            window.paginateTable();
-                        }
                     });
                 }
             });
