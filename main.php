@@ -193,8 +193,8 @@ if ($is_admin) {
     ];
 
     $sql = "SELECT u.*, 
-            (SELECT COUNT(*) FROM health_records h WHERE h.user_id = u.id AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ?) as has_record,
-            (SELECT bmi_classification FROM health_records h WHERE h.user_id = u.id AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ? ORDER BY date_taken DESC LIMIT 1) as bmi_class
+            (SELECT COUNT(*) FROM health_records h WHERE h.user_id = u.id AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ? AND h.bmi_classification IS NOT NULL AND h.bmi_classification != '' AND h.bmi_classification != 'N/A' AND h.bmi_classification != '0') as has_record,
+            (SELECT bmi_classification FROM health_records h WHERE h.user_id = u.id AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ? AND h.bmi_classification IS NOT NULL AND h.bmi_classification != '' AND h.bmi_classification != 'N/A' AND h.bmi_classification != '0' ORDER BY date_taken DESC LIMIT 1) as bmi_class
             FROM users u WHERE u.role = 'user' ORDER BY CASE rank ";
     foreach ($rank_order as $index => $rank) {
         $sql .= "WHEN ? THEN " . ($index + 1) . " ";
@@ -228,7 +228,7 @@ if ($is_admin) {
         $stmt->execute($params_total);
         $compliance_summary['total'] = $stmt->fetchColumn();
 
-        $stmt = $pdo->prepare("SELECT COUNT(DISTINCT h.user_id) FROM health_records h JOIN users u ON h.user_id = u.id WHERE $where_comp");
+        $stmt = $pdo->prepare("SELECT COUNT(DISTINCT h.user_id) FROM health_records h JOIN users u ON h.user_id = u.id WHERE $where_comp AND h.bmi_classification IS NOT NULL AND h.bmi_classification != '' AND h.bmi_classification != 'N/A' AND h.bmi_classification != '0'");
         $stmt->execute($params_comp);
         $compliance_summary['completed'] = $stmt->fetchColumn();
 
@@ -243,7 +243,7 @@ if ($is_admin) {
 
         $nc_sql = "
             SELECT u.unit, 
-                   SUM(CASE WHEN h.bmi_classification NOT IN ('NORMAL', 'ACCEPTABLE BMI') THEN 1 ELSE 0 END) as nc_count,
+                   SUM(CASE WHEN h.bmi_classification NOT IN ('NORMAL', 'ACCEPTABLE BMI', 'N/A', '0', '') AND h.bmi_classification IS NOT NULL THEN 1 ELSE 0 END) as nc_count,
                    SUM(CASE WHEN h.bmi_classification = 'SEVERELY UNDERWEIGHT' THEN 1 ELSE 0 END) as sev_uw,
                    SUM(CASE WHEN h.bmi_classification = 'UNDERWEIGHT' THEN 1 ELSE 0 END) as uw,
                    SUM(CASE WHEN h.bmi_classification = 'NORMAL' THEN 1 ELSE 0 END) as normal,
@@ -254,9 +254,13 @@ if ($is_admin) {
                    SUM(CASE WHEN h.bmi_classification = 'OBESE CLASS 3' THEN 1 ELSE 0 END) as obese3
             FROM users u
             INNER JOIN health_records h ON u.id = h.user_id
+            INNER JOIN (
+                SELECT user_id, MAX(id) as latest_id
+                FROM health_records
+                WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
+                GROUP BY user_id
+            ) latest ON h.id = latest.latest_id
             WHERE u.role = 'user' 
-              AND MONTH(h.date_taken) = ? 
-              AND YEAR(h.date_taken) = ?
               AND u.unit IS NOT NULL AND u.unit != ''
         ";
         if (!empty($selected_unit)) {
@@ -265,7 +269,7 @@ if ($is_admin) {
         } else {
             $nc_params = [$selected_month, $selected_year];
         }
-        $nc_sql .= " GROUP BY u.unit ORDER BY $rank_sort DESC LIMIT 10";
+        $nc_sql .= " GROUP BY u.unit ORDER BY $rank_sort DESC";
         
         $stmt = $pdo->prepare($nc_sql);
         $stmt->execute($nc_params);
@@ -1494,6 +1498,23 @@ function getRankAcronym($rank) {
             transform: translateY(0);
         }
 
+        /* Units Scroll Container Styling */
+        .units-scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .units-scroll-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .units-scroll-container::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        [data-bs-theme="dark"] .units-scroll-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .units-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(23, 0, 173, 0.3);
+        }
     </style>
     <script>
         // Apply theme immediately to prevent flicker
@@ -1692,41 +1713,43 @@ function getRankAcronym($rank) {
                                             No non-compliant records found for this period.
                                         </div>
                                     <?php else: ?>
-                                        <div class="row">
-                                            <?php foreach ($unit_compliance_rankings as $rank => $data): 
-                                                $unitColor = getUnitColor($data['unit']);
-                                            ?>
-                                                <div class="col-12 mb-2">
-                                                    <div class="d-flex justify-content-between align-items-center p-2 rounded-3 rank-item-bg shadow-sm" style="border-left: 4px solid <?php echo $unitColor; ?>;">
-                                                        <div class="d-flex flex-column gap-1 overflow-hidden" style="flex: 1;">
-                                                            <div class="d-flex align-items-center mb-1">
-                                                                <div class="badge rounded-circle me-3 d-flex align-items-center justify-content-center flex-shrink-0" 
-                                                                     style="width: 24px; height: 24px; background-color: <?php echo $unitColor; ?>; color: white; font-size: 0.75rem;">
-                                                                    <?php echo $rank + 1; ?>
+                                        <div class="units-scroll-container px-1" style="max-height: 600px; overflow-y: auto; overflow-x: hidden;">
+                                            <div class="row g-2">
+                                                <?php foreach ($unit_compliance_rankings as $rank => $data): 
+                                                    $unitColor = getUnitColor($data['unit']);
+                                                ?>
+                                                    <div class="col-12">
+                                                        <div class="d-flex justify-content-between align-items-center p-2 rounded-3 rank-item-bg shadow-sm" style="border-left: 4px solid <?php echo $unitColor; ?>;">
+                                                            <div class="d-flex flex-column gap-1 overflow-hidden" style="flex: 1;">
+                                                                <div class="d-flex align-items-center mb-1">
+                                                                    <div class="badge rounded-circle me-3 d-flex align-items-center justify-content-center flex-shrink-0" 
+                                                                         style="width: 24px; height: 24px; background-color: <?php echo $unitColor; ?>; color: white; font-size: 0.75rem;">
+                                                                        <?php echo $rank + 1; ?>
+                                                                    </div>
+                                                                    <span class="fw-bold text-truncate" style="cursor: pointer; text-decoration: underline dotted; font-size: 0.95rem;" onclick="filterAndSortByBMI('<?php echo addslashes($data['unit']); ?>')" title="Click to filter and sort by BMI"><?php echo htmlspecialchars($data['unit']); ?></span>
                                                                 </div>
-                                                                <span class="fw-bold text-truncate" style="cursor: pointer; text-decoration: underline dotted; font-size: 0.95rem;" onclick="filterAndSortByBMI('<?php echo addslashes($data['unit']); ?>')" title="Click to filter and sort by BMI"><?php echo htmlspecialchars($data['unit']); ?></span>
+                                                                <!-- BMI Group Breakdown -->
+                                                                <div class="d-flex flex-wrap gap-1 ps-2" style="margin-left: 1.5rem;">
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 0, 255, 0.1); border-color: rgba(255, 0, 255, 0.2) !important;" title="Click to see Severely Underweight" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'SEVERELY UNDERWEIGHT')">SUW: <?php echo $data['sev_uw']; ?></span>
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(0, 0, 255, 0.1); border-color: rgba(0, 0, 255, 0.2) !important;" title="Click to see Underweight" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'UNDERWEIGHT')">UW: <?php echo $data['uw']; ?></span>
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(0, 255, 0, 0.1); border-color: rgba(0, 255, 0, 0.2) !important;" title="Click to see Normal" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'NORMAL')">N: <?php echo $data['normal']; ?></span>
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(0, 255, 255, 0.1); border-color: rgba(0, 255, 255, 0.2) !important;" title="Click to see Acceptable BMI" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'ACCEPTABLE BMI')">A: <?php echo $data['acceptable']; ?></span>
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 255, 0, 0.1); border-color: rgba(255, 255, 0, 0.2) !important;" title="Click to see Overweight" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OVERWEIGHT')">OW: <?php echo $data['ow']; ?></span>
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 204, 0, 0.1); border-color: rgba(255, 204, 0, 0.2) !important;" title="Click to see Obese Class 1" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OBESE CLASS 1')">O1: <?php echo $data['obese1']; ?></span>
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 153, 0, 0.1); border-color: rgba(255, 153, 0, 0.2) !important;" title="Click to see Obese Class 2" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OBESE CLASS 2')">O2: <?php echo $data['obese2']; ?></span>
+                                                                    <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 0, 0, 0.1); border-color: rgba(255, 0, 0, 0.2) !important;" title="Click to see Obese Class 3" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OBESE CLASS 3')">O3: <?php echo $data['obese3']; ?></span>
+                                                                </div>
                                                             </div>
-                                                            <!-- BMI Group Breakdown -->
-                                                            <div class="d-flex flex-wrap gap-1 ps-2" style="margin-left: 1.5rem;">
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 0, 255, 0.1); border-color: rgba(255, 0, 255, 0.2) !important;" title="Click to see Severely Underweight" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'SEVERELY UNDERWEIGHT')">SUW: <?php echo $data['sev_uw']; ?></span>
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(0, 0, 255, 0.1); border-color: rgba(0, 0, 255, 0.2) !important;" title="Click to see Underweight" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'UNDERWEIGHT')">UW: <?php echo $data['uw']; ?></span>
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(0, 255, 0, 0.1); border-color: rgba(0, 255, 0, 0.2) !important;" title="Click to see Normal" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'NORMAL')">N: <?php echo $data['normal']; ?></span>
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(0, 255, 255, 0.1); border-color: rgba(0, 255, 255, 0.2) !important;" title="Click to see Acceptable BMI" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'ACCEPTABLE BMI')">A: <?php echo $data['acceptable']; ?></span>
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 255, 0, 0.1); border-color: rgba(255, 255, 0, 0.2) !important;" title="Click to see Overweight" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OVERWEIGHT')">OW: <?php echo $data['ow']; ?></span>
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 204, 0, 0.1); border-color: rgba(255, 204, 0, 0.2) !important;" title="Click to see Obese Class 1" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OBESE CLASS 1')">O1: <?php echo $data['obese1']; ?></span>
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 153, 0, 0.1); border-color: rgba(255, 153, 0, 0.2) !important;" title="Click to see Obese Class 2" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OBESE CLASS 2')">O2: <?php echo $data['obese2']; ?></span>
-                                                                <span class="badge border text-dark fw-normal bmi-breakdown-badge" style="font-size: 0.62rem; background: rgba(255, 0, 0, 0.1); border-color: rgba(255, 0, 0, 0.2) !important;" title="Click to see Obese Class 3" onclick="filterByBmiCategory('<?php echo addslashes($data['unit']); ?>', 'OBESE CLASS 3')">O3: <?php echo $data['obese3']; ?></span>
-                                                            </div>
-                                                        </div>
-                                                        <div class="d-flex align-items-center ms-auto px-2">
-                                                            <div class="text-end">
-                                                                <div class="fw-bold fs-5" style="color: <?php echo $unitColor; ?>; line-height: 1;"><?php echo $data['nc_count']; ?></div>
-                                                                <div class="small text-secondary fw-bold" style="font-size: 0.65rem;">NON-COMPLIANT</div>
+                                                            <div class="d-flex align-items-center ms-auto px-2">
+                                                                <div class="text-end">
+                                                                    <div class="fw-bold fs-5" style="color: <?php echo $unitColor; ?>; line-height: 1;"><?php echo $data['nc_count']; ?></div>
+                                                                    <div class="small text-secondary fw-bold" style="font-size: 0.65rem;">NON-COMPLIANT</div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            <?php endforeach; ?>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
                                         <!-- Non-Compliance Total -->
                                         <?php 
