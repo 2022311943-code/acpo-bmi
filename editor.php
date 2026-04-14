@@ -499,46 +499,9 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
             background-color: #7b85ff;
             color: #fff;
         }
-        @media print {
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color: #000 !important;
-                box-shadow: none !important;
-                text-shadow: none !important;
-            }
-            /* Keep borders black */
-            .border-black, .border-bottom, .border-end, .border-top, .border-start {
-                border-color: #000 !important;
-            }
-            .no-print {
-                display: none !important;
-            }
-            /* Optional: ensure background graphics are off (handled by * but redundant safety) */
-            body {
-                background: white !important;
-            }
-            .bmi-container {
-                width: 100% !important;
-                max-width: 1300px !important;
-                margin: 0 auto !important;
-            }
-            .left-col { width: 26% !important; }
-            .right-col { width: 74% !important; }
-            .pic-box { padding: 5px !important; }
-            .pic-box img { background-color: transparent !important; }
-            
-            /* Tighter spacing in print to prevent photo box from shrinking vertically */
-            .view-label { padding: 1px 0 !important; font-size: 0.7rem !important; }
-            .class-standard { padding: 2px !important; }
-            .class-standard div[style*="min-height: 40px"] { min-height: 25px !important; font-size: 0.7rem !important; }
-            .m-auto.py-2 { padding-top: 1px !important; padding-bottom: 1px !important; }
-            .data-row { padding-top: 2px !important; padding-bottom: 2px !important; }
-            
             /* Adjust view label widths in print */
             .view-label:nth-child(1), .view-label:nth-child(3) { flex: 0 0 30% !important; }
             .view-label:nth-child(2) { flex: 1 !important; }
-        }
         }
 
         .small-text {
@@ -592,17 +555,19 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
         }
 
         .pic-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            position: absolute;
-            top: 0;
-            left: 0;
+            max-width: 100%;
+            height: auto;
+            display: block;
             z-index: 1;
         }
         
         .pic-box span {
-            position: relative;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            padding: 10px;
             z-index: 2;
         }
 
@@ -1154,6 +1119,19 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
             [data-bs-theme="dark"] .pic-box {
                 border-color: #000 !important;
             }
+            
+            /* Photo frame adaptation in print */
+            .pic-box {
+                min-height: 0 !important;
+                padding: 0 !important;
+            }
+            .pic-box img {
+                width: 100% !important;
+                height: auto !important;
+                display: block !important;
+                position: relative !important;
+            }
+            .view-label { padding: 2px 0 !important; font-size: 0.75rem !important; }
             /* Force standard primary blue color for labels */
             [style*="color: #1700ad"], [data-bs-theme="dark"] [style*="color: #1700ad"] {
                 color: #1700ad !important;
@@ -1424,7 +1402,7 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                                     $hasImg = !empty($user_data['img_front']);
                                     $src = $hasImg ? $user_data['img_front'] : '';
                                     ?>
-                                    <div class="pic-box border-bottom border-black w-100 h-100" onclick="<?php echo $is_admin ? "document.getElementById('img-upload-all').click()" : ''; ?>">
+                                    <div class="pic-box border-bottom border-black w-100" onclick="<?php echo $is_admin ? "document.getElementById('img-upload-all').click()" : ''; ?>">
                                         <span id="img-text-all" class="<?php echo $hasImg ? 'd-none' : ''; ?>"><?php echo $hasImg ? '' : "Upload Full Body Photo Here"; ?></span>
                                         <img id="img-preview-all" src="<?php echo $src; ?>" alt="Physical View" class="<?php echo $hasImg ? '' : 'd-none'; ?>">
                                         <?php if ($is_admin): ?>
