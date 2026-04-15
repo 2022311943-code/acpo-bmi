@@ -68,6 +68,7 @@ header("Expires: 0");
             <th rowspan="2">Height (m)</th>
             <th rowspan="2">Waist (cm)</th>
             <th rowspan="2">Hips (cm)</th>
+            <th rowspan="2">Wrist (cm)</th>
             <?php 
             $m_idx = 0;
             foreach ($months_in_range as $month): 
@@ -108,7 +109,7 @@ header("Expires: 0");
         $count = 1;
         foreach ($users as $user) {
             // Fetch the latest health record for general data (height, waist, etc.) within or before the end date
-            $stmt_latest = $pdo->prepare("SELECT height, waist, hip, intervention_package FROM health_records WHERE user_id = ? AND date_taken <= ? ORDER BY date_taken DESC LIMIT 1");
+            $stmt_latest = $pdo->prepare("SELECT height, waist, hip, wrist, intervention_package FROM health_records WHERE user_id = ? AND date_taken <= ? ORDER BY date_taken DESC LIMIT 1");
             $stmt_latest->execute([$user['id'], $end_date]);
             $latest = $stmt_latest->fetch(PDO::FETCH_ASSOC);
             
@@ -139,6 +140,7 @@ header("Expires: 0");
             echo "<td>" . ($latest['height'] ?? '') . "</td>";
             echo "<td>" . ($latest['waist'] ?? '') . "</td>";
             echo "<td>" . ($latest['hip'] ?? '') . "</td>";
+            echo "<td>" . ($latest['wrist'] ?? '') . "</td>";
             
             $m_idx = 0;
             foreach ($months_in_range as $month) {
