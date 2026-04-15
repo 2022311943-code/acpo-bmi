@@ -95,7 +95,9 @@ header("Expires: 0");
     <tbody>
         <?php
         // Fetch users (filtered by unit if specified)
-        if ($unit_filter !== 'ALL') {
+        if ($unit_filter === 'NO_UNIT') {
+            $stmt_users = $pdo->query("SELECT * FROM users WHERE role = 'user' AND (unit IS NULL OR unit = '' OR unit = 'No Unit') ORDER BY name ASC");
+        } elseif ($unit_filter !== 'ALL') {
             $stmt_users = $pdo->prepare("SELECT * FROM users WHERE role = 'user' AND unit = ? ORDER BY name ASC");
             $stmt_users->execute([$unit_filter]);
         } else {
@@ -148,7 +150,8 @@ header("Expires: 0");
                 echo "<td style='background-color: $bgColor;'>" . ($m_data['bmi_classification'] ?? '') . "</td>";
             }
             
-            echo "<td>" . ($user['unit'] ?? '') . "</td>";
+            $display_unit = (!empty($user['unit']) && $user['unit'] !== 'No Unit') ? $user['unit'] : 'No Unit';
+            echo "<td>" . $display_unit . "</td>";
             echo "<td>" . ($latest['intervention_package'] ?? '') . "</td>";
             echo "</tr>";
         }

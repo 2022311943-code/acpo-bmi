@@ -1629,8 +1629,15 @@ function getRankAcronym($rank) {
                                             <div>RECORDED</div>
                                         </div>
                                         <div class="col-6">
-                                            <div class="fw-bold fs-6"><?php echo $compliance_summary['total'] - $compliance_summary['completed']; ?></div>
-                                            <div>MISSING</div>
+                                            <a href="export_missing.php?month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>&unit=<?php echo urlencode($selected_unit); ?>" 
+                                               class="text-white text-decoration-none d-block" 
+                                               title="Click to download list of missing personnel"
+                                               style="transition: opacity 0.2s;"
+                                               onmouseover="this.style.opacity='0.7'" 
+                                               onmouseout="this.style.opacity='1'">
+                                                <div class="fw-bold fs-6"><?php echo $compliance_summary['total'] - $compliance_summary['completed']; ?></div>
+                                                <div>MISSING <i class="bi bi-download" style="font-size: 0.6rem;"></i></div>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -2254,6 +2261,7 @@ function getRankAcronym($rank) {
                                             <label class="form-label small fw-bold text-secondary text-uppercase">Unit/Office</label>
                                             <select name="unit_filter" class="form-select" required>
                                                 <option value="ALL">ALL UNITS</option>
+                                                <option value="NO_UNIT">No Unit</option>
                                                 <option value="CHQ">CHQ</option>
                                                 <option value="PS1">PS1</option>
                                                 <option value="PS2">PS2</option>

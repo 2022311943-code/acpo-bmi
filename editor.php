@@ -53,6 +53,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $mt_hips = json_encode($_POST['monthly_hips'] ?? []);
         $mt_wrists = json_encode($_POST['monthly_wrists'] ?? []);
 
+        // Check if a record already exists for this user in the same month/year
+        $check_month = date('m', strtotime($date_taken));
+        $check_year = date('Y', strtotime($date_taken));
+        $stmt_check = $pdo->prepare("SELECT * FROM health_records WHERE user_id = ? AND MONTH(date_taken) = ? AND YEAR(date_taken) = ? ORDER BY date_taken DESC LIMIT 1");
+        $stmt_check->execute([$user_id_to_save, $check_month, $check_year]);
+        $existing_record = $stmt_check->fetch(PDO::FETCH_ASSOC);
+
         if ($existing_record) {
             // Update the existing record for this month
             $sql = "UPDATE health_records SET 
@@ -157,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     $success_msg = "Health record saved successfully!";
-        header("Location: editor.php?edit_user_id=" . $user_id_to_save . "&saved=1");
+        header("Location: editor.php?edit_user_id=" . $user_id_to_save . "&date=" . urlencode($date_taken) . "&saved=1");
         exit;
 
     } catch (Exception $e) {
