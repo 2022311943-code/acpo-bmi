@@ -2314,6 +2314,11 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                         
                         canvas.width = width;
                         canvas.height = height;
+                        
+                        // Fill white background for transparent PNGs before converting to JPEG
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, width, height);
+                        
                         ctx.drawImage(img, 0, 0, width, height);
                         
                         // Compress to JPEG with 0.7 quality

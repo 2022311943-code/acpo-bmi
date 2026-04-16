@@ -832,6 +832,11 @@ $next_user_no = (int)$stmt_count->fetchColumn() + 1;
                             if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
                         }
                         canvas.width = width; canvas.height = height;
+                        
+                        // Fill white background for transparent PNGs before converting to JPEG
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, width, height);
+
                         ctx.drawImage(img, 0, 0, width, height);
                         var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                         
