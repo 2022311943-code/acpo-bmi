@@ -192,10 +192,23 @@ if ($is_admin) {
         'Patrolman / Patrolwoman (Pat)'
     ];
 
-    $sql = "SELECT u.*, 
-            (SELECT COUNT(*) FROM health_records h WHERE h.user_id = u.id AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ? AND h.bmi_classification IS NOT NULL AND h.bmi_classification != '' AND h.bmi_classification != 'N/A' AND h.bmi_classification != '0') as has_record,
-            (SELECT bmi_classification FROM health_records h WHERE h.user_id = u.id AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ? AND h.bmi_classification IS NOT NULL AND h.bmi_classification != '' AND h.bmi_classification != 'N/A' AND h.bmi_classification != '0' ORDER BY date_taken DESC LIMIT 1) as bmi_class
-            FROM users u WHERE u.role = 'user' ORDER BY CASE rank ";
+    // Optimize query: Avoid O(N) correlated subqueries, avoid fetching massive base64 images (img_right, img_front, img_left)
+    $sql = "SELECT u.id, u.last_name, u.first_name, u.middle_name, u.suffix, u.rank, u.gender, u.birthday, u.age, u.nationality, u.address, u.religion, u.contact, u.email, u.unit, u.username, u.name, u.created_at, u.status, u.profile_pic,
+            CASE WHEN hr.bmi_classification IS NOT NULL THEN 1 ELSE 0 END as has_record,
+            hr.bmi_classification as bmi_class
+            FROM users u 
+            LEFT JOIN (
+                SELECT user_id, bmi_classification
+                FROM health_records
+                WHERE id IN (
+                    SELECT MAX(id)
+                    FROM health_records
+                    WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
+                      AND bmi_classification IS NOT NULL AND bmi_classification != '' AND bmi_classification != 'N/A' AND bmi_classification != '0'
+                    GROUP BY user_id
+                )
+            ) hr ON u.id = hr.user_id
+            WHERE u.role = 'user' ORDER BY CASE u.rank ";
     foreach ($rank_order as $index => $rank) {
         $sql .= "WHEN ? THEN " . ($index + 1) . " ";
     }
@@ -203,7 +216,7 @@ if ($is_admin) {
 
     try {
         $stmt = $pdo->prepare($sql);
-        $params = array_merge([$selected_month, $selected_year, $selected_month, $selected_year], $rank_order);
+        $params = array_merge([$selected_month, $selected_year], $rank_order);
         $stmt->execute($params);
         $users_list = $stmt->fetchAll();
 
@@ -1951,9 +1964,9 @@ function getRankAcronym($rank) {
                                                     <td class="py-2 text-center">
                                                         <div class="rounded-circle overflow-hidden d-inline-block shadow-sm border" style="width: 38px; height: 38px;">
                                                             <?php if (!empty($user['profile_pic'])): ?>
-                                                                <img src="<?php echo $user['profile_pic']; ?>" alt="pfp" style="width: 100%; height: 100%; object-fit: cover;">
+                                                                <img src="<?php echo $user['profile_pic']; ?>" alt="pfp" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
                                                             <?php else: ?>
-                                                                <img src="images/placeholder.png" alt="pfp" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 200 200\'><circle cx=\'100\' cy=\'100\' r=\'100\' fill=\'%23f8f9fa\'/><path d=\'M100 50 A25 25 0 1 0 100 100 A25 25 0 1 0 100 50 Z M100 110 C70 110 40 130 40 160 A60 60 0 0 0 160 160 C160 130 130 110 100 110 Z\' fill=\'%23adb5bd\'/></svg>'">
+                                                                <img src="images/placeholder.png" alt="pfp" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 200 200\'><circle cx=\'100\' cy=\'100\' r=\'100\' fill=\'%23f8f9fa\'/><path d=\'M100 50 A25 25 0 1 0 100 100 A25 25 0 1 0 100 50 Z M100 110 C70 110 40 130 40 160 A60 60 0 0 0 160 160 C160 130 130 110 100 110 Z\' fill=\'%23adb5bd\'/></svg>'">
                                                             <?php endif; ?>
                                                         </div>
                                                     </td>
@@ -1997,8 +2010,13 @@ function getRankAcronym($rank) {
                                                     <td class="py-3 text-secondary small text-nowrap"><?php echo date('M j, Y', strtotime($user['created_at'])); ?></td>
                                                     <td class="py-3 text-center">
                                                         <div class="d-flex justify-content-center gap-1">
+                                                            <?php 
+                                                                // Strip heavy profile pic from JSON payload to prevent massive DOM size
+                                                                $safe_user = $user;
+                                                                unset($safe_user['profile_pic']);
+                                                            ?>
                                                             <button class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0 fw-bold" style="font-size: 11px;"
-                                                                    onclick="openEditModal(<?php echo htmlspecialchars(json_encode($user)); ?>)">
+                                                                    onclick="openEditModal(<?php echo htmlspecialchars(json_encode($safe_user)); ?>)">
                                                                 Edit
                                                             </button>
                                                             <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2 py-0 fw-bold" style="font-size: 11px;"

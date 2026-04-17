@@ -247,6 +247,16 @@ $months_list = [
     9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
 ];
 
+// Fetch Profile Pic for Sidebar (Logged in User)
+$sidebar_pfp = "images/placeholder.png";
+if (isset($_SESSION['user_id'])) {
+    $stmt_pfp = $pdo->prepare("SELECT profile_pic FROM users WHERE id = ?");
+    $stmt_pfp->execute([$_SESSION['user_id']]);
+    $pfp_row = $stmt_pfp->fetch();
+    if ($pfp_row && !empty($pfp_row['profile_pic'])) {
+        $sidebar_pfp = $pfp_row['profile_pic'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -259,26 +269,218 @@ $months_list = [
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
     <style>
+        @font-face {
+            font-family: 'Agrandir';
+            src: url('fonts/Agrandir-Bold.woff2') format('woff2'),
+                 url('fonts/Agrandir-Bold.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+
         body {
             background-color: #f8f9fa;
+            transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1), color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .acpo-blue {
             background-color: #1700ad !important;
         }
         .acpo-nav {
+            position: relative;
+            z-index: 1030;
             border-bottom: 2px solid #e9ecef;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
+        .acpo-header-text {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #ffffff;
+            font-family: 'Agrandir', sans-serif;
+            line-height: 1.2;
+            letter-spacing: 0.02em;
+        }
+        .hamburger-icon {
+            font-size: 2rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .hamburger-icon:hover {
+            color: #e0e0e0 !important;
+        }
+
+        /* Sidebar Styles */
+        .user-sidebar {
+            width: 380px !important;
+            border-left: none;
+            background: linear-gradient(135deg, #0d005e 0%, #1700ad 100%) !important;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            color: #ffffff;
+        }
+        .user-sidebar .offcanvas-body {
+            padding: 2.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .profile-placeholder {
+            width: 100%;
+            max-width: 130px;
+            aspect-ratio: 1 / 1;
+            margin-bottom: 1rem;
+            border-radius: 50%;
+            padding: 5px;
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+        .profile-placeholder:hover {
+            transform: scale(1.05);
+        }
+        .profile-placeholder img {
+            border: 3px solid #ffffff !important;
+            border-radius: 50%;
+        }
+        .sidebar-name {
+            font-family: 'Agrandir', sans-serif;
+            font-weight: bold;
+            font-size: 1.6rem;
+            color: #ffffff;
+            margin-bottom: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .sidebar-links-container {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.8rem;
+            width: 100%;
+            margin-bottom: auto;
+        }
+        .sidebar-links-container a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.85) !important;
+            text-decoration: none;
+            font-family: 'Agrandir', sans-serif;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 8px;
+        }
+        .sidebar-links-container a i {
+            font-size: 1.3rem;
+            margin-right: 15px;
+            color: #33AFFF;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-links-container a:hover, .sidebar-links-container a.active-sidebar-link {
+            background: rgba(255,255,255,0.15);
+            color: #ffffff !important;
+            transform: translateX(5px);
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .sidebar-links-container a:hover i, .sidebar-links-container a.active-sidebar-link i {
+            transform: scale(1.2);
+            color: #fff;
+        }
+        .logout-btn-container {
+            margin-top: 3rem;
+            width: 100%;
+        }
+        .logout-btn {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: #fff !important;
+            border-radius: 50px;
+            font-family: 'Agrandir', sans-serif;
+            font-weight: bold;
+            font-size: 1.1rem;
+            padding: 12px 40px;
+            text-decoration: none;
+            text-transform: uppercase;
+            text-align: center;
+            display: block;
+            box-shadow: 0 8px 20px rgba(255, 65, 108, 0.4);
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(255, 65, 108, 0.6);
+        }
+
+        /* Theme Switch */
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        .theme-switch {
+            display: inline-block;
+            height: 40px;
+            position: relative;
+            width: 76px;
+        }
+        .theme-switch input {
+            display: none;
+        }
+        .theme-switch-track {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            cursor: pointer;
+            height: 100%;
+            width: 100%;
+            position: relative;
+            transition: all 0.5s;
+        }
+        .theme-switch-knob {
+            background: #ffffff;
+            border-radius: 50%;
+            height: 32px;
+            width: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            left: 3px;
+            top: 2.5px;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        [data-bs-theme="dark"] .theme-switch-knob {
+            transform: translateX(36px);
+            background: #2b2e38;
+        }
+        .sun-icon { color: #f39c12; }
+        .moon-icon { color: #33AFFF; display: none; }
+        [data-bs-theme="dark"] .sun-icon { display: none; }
+        [data-bs-theme="dark"] .moon-icon { display: block; }
+
+        /* Dark Mode */
+        [data-bs-theme="dark"] body { background-color: #121212 !important; color: #e0e0e0 !important; }
+        [data-bs-theme="dark"] .glass-panel { background: #1e1e1e !important; border-color: #333 !important; color: #fff !important; }
+        [data-bs-theme="dark"] .section-title { color: #fff; border-bottom-color: #333; }
+        [data-bs-theme="dark"] .month-item { background: #2d2d2d; border-color: #444; color: #fff; }
+        [data-bs-theme="dark"] .form-control, [data-bs-theme="dark"] .form-select, [data-bs-theme="dark"] .input-group-text {
+            background-color: #2d2d2d !important; border-color: #444 !important; color: #ffffff !important;
+        }
+
         .glass-panel {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.08);
             border: 1px solid rgba(255,255,255,0.4);
-            padding: 2rem;
+            padding: 2.5rem;
             backdrop-filter: blur(10px);
         }
         .input-group label {
-            width: 120px;
+            width: 130px;
             background-color: #f1f3f5;
             font-weight: bold;
             color: #495057;
@@ -295,7 +497,8 @@ $months_list = [
             border-bottom: 2px solid rgba(23,0,173,0.1);
             padding-bottom: 0.5rem;
         }
-        
+
+        /* Monthly Weights Grid */
         .month-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -307,27 +510,79 @@ $months_list = [
             border-radius: 12px;
             padding: 10px 15px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            transition: all 0.3s ease;
+        }
+        [data-bs-theme="dark"] .month-item {
+            background: #2d2d2d;
+            border-color: #444;
+            color: #fff;
         }
     </style>
 </head>
 <body>
 
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark acpo-blue acpo-nav py-2" style="position: sticky; top: 0; z-index: 1030;">
-    <div class="container-fluid px-3 px-md-4">
-        <a class="navbar-brand d-flex align-items-center" href="main.php" style="text-decoration: none;">
-            <img src="images/acpo_logo.png" alt="ACPO Logo" height="50" class="me-3" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
-            <span class="acpo-header-text d-none d-sm-block text-white" style="line-height: 1.2;">
-                QCPO<br><small style="font-size: 0.75em; opacity: 0.9;">Monitoring System</small>
-            </span>
+<nav class="navbar navbar-expand-lg acpo-blue acpo-nav py-2 py-lg-3">
+    <div class="container-fluid px-2 px-lg-4">
+        <a href="index.php" class="navbar-brand d-flex align-items-center text-white text-decoration-none ms-3 ms-lg-5 ps-lg-5">
+            <img src="images/pnplogo.png" alt="ACPO Logo" class="me-2" style="height: 60px; width: auto;">
+            <img src="images/acpologo.png" alt="PNP Logo" class="me-2 me-md-3" style="height: 70px; width: auto;">
+            <span class="acpo-header-text">ANGELES CITY POLICE OFFICE</span>
         </a>
-        <div class="d-flex align-items-center">
-            <a href="main.php" class="btn btn-light rounded-pill px-4 fw-bold shadow-sm">
-                <i class="bi bi-arrow-left me-2"></i> Back to Masterlist
-            </a>
+        <div class="d-flex align-items-center justify-content-end me-3 me-lg-5 pe-lg-5">
+            <button class="btn border-0 p-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#userSidebar" aria-controls="userSidebar">
+                <i class="bi bi-list text-white hamburger-icon"></i>
+            </button>
         </div>
     </div>
 </nav>
+
+<!-- Hamburger Overlay Menu -->
+<div class="offcanvas offcanvas-end user-sidebar" tabindex="-1" id="userSidebar" aria-labelledby="userSidebarLabel">
+    <div class="offcanvas-header pb-0 border-0">
+        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        <a href="settings.php" class="profile-placeholder d-flex justify-content-center text-decoration-none">
+            <img src="<?php echo $sidebar_pfp; ?>" alt="Profile" class="img-fluid rounded-circle shadow-sm" style="width: 130px; height: 130px; object-fit: cover; border: 3px solid #fff;" onerror="this.onerror=null; this.src='images/placeholder.png'">
+        </a>
+        
+        <h4 class="sidebar-name"><?php echo isset($_SESSION['name']) ? htmlspecialchars($_SESSION['name']) : 'User'; ?></h4>
+        
+        <!-- Dark Mode Switch in Sidebar -->
+        <div class="d-flex justify-content-center mb-4">
+            <div class="theme-switch-wrapper">
+                <label class="theme-switch" for="theme-switch-checkbox">
+                    <input type="checkbox" id="theme-switch-checkbox">
+                    <div class="theme-switch-track">
+                        <div class="theme-switch-knob">
+                            <i class="bi bi-sun-fill sun-icon"></i>
+                            <i class="bi bi-moon-stars-fill moon-icon"></i>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        
+        <div class="sidebar-links-container">
+            <a href="main.php"><i class="bi bi-house-door"></i> HOME</a>
+            <a href="editor.php"><i class="bi bi-calculator"></i> BMI CALCULATOR</a>
+            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                <a href="admin_users.php"><i class="bi bi-people"></i> MANAGE ACCOUNTS</a>
+                <a href="audit_logs.php"><i class="bi bi-shield-lock"></i> AUDIT LOGS</a>
+            <?php endif; ?>
+            <a href="settings.php"><i class="bi bi-gear"></i> USER SETTINGS</a>
+            <a href="about.php"><i class="bi bi-info-circle"></i> ABOUT</a>
+            <a href="contact.php"><i class="bi bi-envelope"></i> CONTACT</a>
+        </div>
+        
+        <div class="logout-btn-container">
+            <a href="login.php?action=logout" class="logout-btn">
+                LOGOUT <i class="bi bi-box-arrow-right ms-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
 
 <div class="container py-5">
     
@@ -474,8 +729,25 @@ $months_list = [
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const themeSwitch = document.getElementById('theme-switch-checkbox');
+        const htmlElement = document.documentElement;
+
+        if (localStorage.getItem('theme') === 'dark' || htmlElement.getAttribute('data-bs-theme') === 'dark') {
+            htmlElement.setAttribute('data-bs-theme', 'dark');
+            if (themeSwitch) themeSwitch.checked = true;
+        }
+
+        if (themeSwitch) {
+            themeSwitch.addEventListener('change', function() {
+                const newTheme = this.checked ? 'dark' : 'light';
+                htmlElement.setAttribute('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+            });
+        }
+    });
+
     function changeYear(year) {
-        // preserve the user id and reload page with new year
         window.location.href = `quick_mode.php?edit_user_id=<?php echo $edit_user_id; ?>&year=${year}`;
     }
 </script>
