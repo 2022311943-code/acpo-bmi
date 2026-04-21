@@ -55,11 +55,8 @@ usort($users, function($a, $b) use ($priority_units) {
 });
 
 // Set headers for Excel download
-$filename = "Missing_BMI_Pictures_";
-if (!empty($unit_filter)) {
-    $filename .= str_replace(' ', '_', $unit_filter) . "_";
-}
-$filename .= $monthName . "_" . $year . ".xls";
+$unit_label = !empty($unit_filter) ? str_replace(' ', '_', $unit_filter) : "ALL_UNITS";
+$filename = $unit_label . "_Missing_Pictures.xls";
 
 header("Content-Type: application/vnd.ms-excel");
 header("Content-Disposition: attachment; filename=" . $filename);
