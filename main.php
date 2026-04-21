@@ -313,27 +313,50 @@ if ($is_admin) {
             return $unitMap[$unitName] ?? '#6c757d'; // Default gray
         }
 
-        // 3. Personnel Missing BMI Form Pictures
-        $missing_pics_sql = "
-            SELECT u.id, u.name, u.rank, u.unit 
+        // 3. Personnel Deficiency Tracking (Missing Records/Pictures)
+        $deficiency_sql = "
+            SELECT u.id, u.name, u.rank, u.unit, u.img_front, u.img_right, u.img_left,
+                   (CASE WHEN hr.user_id IS NOT NULL THEN 1 ELSE 0 END) as has_monthly_record
             FROM users u 
-            INNER JOIN health_records h ON u.id = h.user_id 
-            WHERE u.role = 'user' 
-            AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ?
-            AND (u.img_front IS NULL OR u.img_front = '') 
-            AND (u.img_right IS NULL OR u.img_right = '') 
-            AND (u.img_left IS NULL OR u.img_left = '')
+            LEFT JOIN (
+                SELECT DISTINCT user_id FROM health_records 
+                WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
+                AND bmi_classification IS NOT NULL AND bmi_classification != '' AND bmi_classification != 'N/A' AND bmi_classification != '0'
+            ) hr ON u.id = hr.user_id
+            WHERE u.role = 'user'
         ";
-        $missing_pics_params = [$selected_month, $selected_year];
+        $deficiency_params = [$selected_month, $selected_year];
         if (!empty($selected_unit)) {
-            $missing_pics_sql .= " AND u.unit = ?";
-            $missing_pics_params[] = $selected_unit;
+            $deficiency_sql .= " AND u.unit = ?";
+            $deficiency_params[] = $selected_unit;
         }
-        $missing_pics_sql .= " GROUP BY u.id ORDER BY u.name ASC";
+        $deficiency_sql .= " ORDER BY u.name ASC";
         
-        $stmt_no_pics = $pdo->prepare($missing_pics_sql);
-        $stmt_no_pics->execute($missing_pics_params);
-        $missing_pics_list = $stmt_no_pics->fetchAll(PDO::FETCH_ASSOC);
+        $stmt_def = $pdo->prepare($deficiency_sql);
+        $stmt_def->execute($deficiency_params);
+        $full_deficient_list = $stmt_def->fetchAll(PDO::FETCH_ASSOC);
+
+        // Process into missing_pics_list focusing ONLY on those with some deficiency
+        $missing_pics_list = [];
+        foreach ($full_deficient_list as $u) {
+            $hasPics = (!empty($u['img_front']) || !empty($u['img_right']) || !empty($u['img_left']));
+            $hasRec = (int)$u['has_monthly_record'];
+
+            // If they have BOTH, they are compliant, skip them
+            if ($hasPics && $hasRec) continue;
+
+            // Determine specific deficiency category for JS filtering
+            if (!$hasRec && !$hasPics) {
+                $u['def_cat'] = 'missing_all';
+            } elseif ($hasRec && !$hasPics) {
+                $u['def_cat'] = 'missing_pics';
+            } elseif (!$hasRec && $hasPics) {
+                $u['def_cat'] = 'missing_record';
+            } else {
+                continue; // Should not reach here based on logic
+            }
+            $missing_pics_list[] = $u;
+        }
 
     } catch (PDOException $e) {
         $users_list = [];
@@ -1550,6 +1573,36 @@ function getRankAcronym($rank) {
         .units-scroll-container::-webkit-scrollbar-thumb:hover {
             background: rgba(23, 0, 173, 0.3);
         }
+
+        /* --- Skeleton Loading Animation --- */
+        .skeleton {
+            background: #e9ecef;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        [data-bs-theme="dark"] .skeleton {
+            background: #2b2b3b;
+            background: linear-gradient(90deg, #1e1e2d 25%, #2d2d3a 50%, #1e1e2d 75%);
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-text { height: 12px; margin-bottom: 0; width: 100%; }
+        .skeleton-circle { width: 36px; height: 36px; border-radius: 50%; }
+        
+        .loading-skeleton-container {
+            display: block;
+        }
+        
+        .real-content-container {
+            display: none;
+        }
     </style>
     <script>
         // Apply theme immediately to prevent flicker
@@ -1815,7 +1868,7 @@ function getRankAcronym($rank) {
                                 <div class="card-body p-4">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h5 class="text-uppercase fw-bold mb-0 small text-secondary">
-                                            Personnel Missing BMI Form Pictures 
+                                            Personnel Record Completion 
                                             <span class="badge bg-danger ms-2 rounded-pill" id="mp-count-badge"><?php echo count($missing_pics_list); ?></span>
                                         </h5>
                                         <div class="d-flex gap-2">
@@ -1829,13 +1882,21 @@ function getRankAcronym($rank) {
 
                                     <?php if (!empty($missing_pics_list)): ?>
                                         <div class="row g-2 mb-3 align-items-center">
-                                            <div class="col-md-7 col-lg-8">
+                                            <div class="col-md-5 col-lg-5">
                                                 <div class="input-group input-group-sm">
                                                     <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search small text-secondary"></i></span>
                                                     <input type="text" id="mp-search-input" class="form-control border-start-0 ps-0" placeholder="Search by name..." style="font-size: 0.8rem;" onkeyup="filterMPTable()">
                                                 </div>
                                             </div>
-                                            <div class="col-md-5 col-lg-4">
+                                            <div class="col-md-3 col-lg-3">
+                                                <select id="mp-category-filter" class="form-select form-select-sm" style="font-size: 0.8rem;" onchange="filterMPTable()">
+                                                    <option value="">All Deficiencies</option>
+                                                    <option value="missing_all">Missing Record & Pics</option>
+                                                    <option value="missing_pics">Missing Pictures Only</option>
+                                                    <option value="missing_record">Missing Record Only</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 col-lg-4">
                                                 <select id="mp-unit-filter" class="form-select form-select-sm" style="font-size: 0.8rem;" onchange="filterMPTable()">
                                                     <option value="">All Units in List</option>
                                                     <?php 
@@ -1869,7 +1930,33 @@ function getRankAcronym($rank) {
                                             All personnel with records for this period have their pictures uploaded.
                                         </div>
                                     <?php else: ?>
-                                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                        <!-- Missing Pictures Skeleton -->
+                                        <div id="mp-skeleton" class="loading-skeleton-container">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="py-2"><div class="skeleton skeleton-text" style="width: 150px;"></div></th>
+                                                            <th class="py-2"><div class="skeleton skeleton-text" style="width: 80px;"></div></th>
+                                                            <th class="py-2"><div class="skeleton skeleton-text" style="width: 100px;"></div></th>
+                                                            <th class="py-2 text-center"><div class="skeleton skeleton-text mx-auto" style="width: 50px;"></div></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php for($i=0; $i<5; $i++): ?>
+                                                        <tr>
+                                                            <td><div class="skeleton skeleton-text"></div></td>
+                                                            <td><div class="skeleton skeleton-text"></div></td>
+                                                            <td><div class="skeleton skeleton-text"></div></td>
+                                                            <td><div class="skeleton skeleton-text"></div></td>
+                                                        </tr>
+                                                        <?php endfor; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div class="table-responsive real-content-container" style="max-height: 400px; overflow-y: auto;">
                                             <table class="table table-sm table-hover align-middle" id="mp-table">
                                                 <thead class="bg-light sticky-top" style="z-index: 1;">
                                                     <tr>
@@ -1886,8 +1973,19 @@ function getRankAcronym($rank) {
                                                             $mp_rank = $matches[1];
                                                         }
                                                     ?>
-                                                        <tr class="mp-row" data-name="<?php echo htmlspecialchars(strtolower($mp_user['name'])); ?>" data-unit="<?php echo htmlspecialchars($mp_user['unit'] ?? ''); ?>">
-                                                            <td class="small fw-bold"><?php echo htmlspecialchars($mp_user['name']); ?></td>
+                                                        <tr class="mp-row" data-name="<?php echo htmlspecialchars(strtolower($mp_user['name'])); ?>" data-unit="<?php echo htmlspecialchars($mp_user['unit'] ?? ''); ?>" data-cat="<?php echo $mp_user['def_cat']; ?>">
+                                                            <td class="small fw-bold">
+                                                                <div class="d-flex flex-column">
+                                                                    <span><?php echo htmlspecialchars($mp_user['name']); ?></span>
+                                                                    <span class="text-mini opacity-75" style="font-size: 0.65rem;">
+                                                                        <?php 
+                                                                            if ($mp_user['def_cat'] == 'missing_all') echo '<span class="text-danger">● Missing Rec & Pics</span>';
+                                                                            elseif ($mp_user['def_cat'] == 'missing_pics') echo '<span class="text-warning">● Missing Pictures Only</span>';
+                                                                            elseif ($mp_user['def_cat'] == 'missing_record') echo '<span class="text-info">● Missing Record Only</span>';
+                                                                        ?>
+                                                                    </span>
+                                                                </div>
+                                                            </td>
                                                             <td class="small text-secondary"><?php echo htmlspecialchars($mp_rank); ?></td>
                                                             <td class="small text-secondary"><?php echo htmlspecialchars($mp_user['unit'] ?? 'N/A'); ?></td>
                                                             <td class="text-center">
@@ -1906,6 +2004,7 @@ function getRankAcronym($rank) {
 function filterMPTable() {
     const searchVal = document.getElementById('mp-search-input').value.toLowerCase();
     const unitVal = document.getElementById('mp-unit-filter').value;
+    const catVal = document.getElementById('mp-category-filter').value;
     const rows = document.querySelectorAll('.mp-row');
     let visibleCount = 0;
 
@@ -1913,17 +2012,19 @@ function filterMPTable() {
     const exportBtn = document.getElementById('mp-export-btn');
     if (exportBtn) {
         const baseUrl = 'export_missing_pics.php?month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>';
-        exportBtn.href = `${baseUrl}&unit=${encodeURIComponent(unitVal)}`;
+        exportBtn.href = `${baseUrl}&unit=${encodeURIComponent(unitVal)}&cat=${encodeURIComponent(catVal)}`;
     }
 
     rows.forEach(row => {
         const name = row.getAttribute('data-name');
         const unit = row.getAttribute('data-unit');
+        const cat = row.getAttribute('data-cat');
         
         const nameMatch = name.includes(searchVal);
         const unitMatch = !unitVal || unit === unitVal;
+        const catMatch = !catVal || cat === catVal;
 
-        if (nameMatch && unitMatch) {
+        if (nameMatch && unitMatch && catMatch) {
             row.style.display = '';
             visibleCount++;
         } else {
@@ -1931,7 +2032,8 @@ function filterMPTable() {
         }
     });
 
-    document.getElementById('mp-count-badge').textContent = visibleCount;
+    const badge = document.getElementById('mp-count-badge');
+    if (badge) badge.textContent = visibleCount;
 }
 </script>
                                 </div>
@@ -2064,7 +2166,41 @@ function filterMPTable() {
                         </div>
                     </div>
                     
-                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <!-- Masterlist Skeleton -->
+                    <div id="ml-skeleton" class="loading-skeleton-container mb-4">
+                        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table align-middle masterlist-skeleton mb-0">
+                                        <thead>
+                                            <tr class="bg-light">
+                                                <th class="py-3 px-3" style="width: 40px;"><div class="skeleton" style="width: 20px; height: 20px;"></div></th>
+                                                <th class="py-3 px-3" style="width: 50px;"><div class="skeleton-circle skeleton"></div></th>
+                                                <?php for($i=0; $i<8; $i++): ?>
+                                                <th class="py-3 px-3"><div class="skeleton skeleton-text" style="width: <?php echo rand(60, 100); ?>px;"></div></th>
+                                                <?php endfor; ?>
+                                                <th class="py-3 px-3 text-center" style="width: 100px;"><div class="skeleton skeleton-text mx-auto" style="width: 50px;"></div></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php for($i=0; $i<10; $i++): ?>
+                                            <tr>
+                                                <td class="px-3"><div class="skeleton mx-auto" style="width: 20px; height: 20px;"></div></td>
+                                                <td class="px-3"><div class="skeleton-circle skeleton mx-auto"></div></td>
+                                                <?php for($j=0; $j<8; $j++): ?>
+                                                <td class="px-3"><div class="skeleton skeleton-text"></div></td>
+                                                <?php endfor; ?>
+                                                <td class="px-3 text-center"><div class="skeleton skeleton-text mx-auto" style="width: 60px;"></div></td>
+                                            </tr>
+                                            <?php endfor; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden real-content-container">
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <table class="table table-hover mb-0 align-middle table-masterlist">
@@ -3150,6 +3286,12 @@ function filterMPTable() {
 
         // Highlighting current active page logic (if ever needed on main.php)
         document.addEventListener("DOMContentLoaded", function() {
+            // Reveal content after a small timeout to ensure browser has parsed everything
+            setTimeout(() => {
+                document.querySelectorAll('.loading-skeleton-container').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.real-content-container').forEach(el => el.style.display = 'block');
+            }, 600);
+
             // Display current date
             const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const today = new Date();

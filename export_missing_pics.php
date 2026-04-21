@@ -9,18 +9,20 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 $month = isset($_GET['month']) ? $_GET['month'] : date('m');
 $year = isset($_GET['year']) ? $_GET['year'] : date('Y');
 $unit_filter = isset($_GET['unit']) ? $_GET['unit'] : '';
+$cat_filter = isset($_GET['cat']) ? $_GET['cat'] : '';
 
 $monthName = date('F', mktime(0, 0, 0, (int)$month, 1));
 
-// Query to find personnel who HAVE a BMI record this month but are missing pictures
-$sql = "SELECT u.name, u.rank, u.unit 
+// Optimized logic to match main.php's deficiency tracking
+$sql = "SELECT u.id, u.name, u.rank, u.unit, u.img_front, u.img_right, u.img_left,
+               (CASE WHEN hr.user_id IS NOT NULL THEN 1 ELSE 0 END) as has_monthly_record
         FROM users u 
-        INNER JOIN health_records h ON u.id = h.user_id 
-        WHERE u.role = 'user' 
-        AND MONTH(h.date_taken) = ? AND YEAR(h.date_taken) = ?
-        AND (u.img_front IS NULL OR u.img_front = '') 
-        AND (u.img_right IS NULL OR u.img_right = '') 
-        AND (u.img_left IS NULL OR u.img_left = '')";
+        LEFT JOIN (
+            SELECT DISTINCT user_id FROM health_records 
+            WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
+            AND bmi_classification IS NOT NULL AND bmi_classification != '' AND bmi_classification != 'N/A' AND bmi_classification != '0'
+        ) hr ON u.id = hr.user_id
+        WHERE u.role = 'user'";
 
 $params = [$month, $year];
 
@@ -29,11 +31,27 @@ if (!empty($unit_filter)) {
     $params[] = $unit_filter;
 }
 
-$sql .= " GROUP BY u.id ORDER BY u.name ASC";
-
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
-$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$raw_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$users = [];
+foreach ($raw_users as $u) {
+    $hasPics = (!empty($u['img_front']) || !empty($u['img_right']) || !empty($u['img_left']));
+    $hasRec = (int)$u['has_monthly_record'];
+    
+    if ($hasPics && $hasRec) continue; // Fully compliant
+    
+    $def_cat = '';
+    if (!$hasRec && !$hasPics) $def_cat = 'missing_all';
+    elseif ($hasRec && !$hasPics) $def_cat = 'missing_pics';
+    elseif (!$hasRec && $hasPics) $def_cat = 'missing_record';
+    
+    if (empty($cat_filter) || $cat_filter == $def_cat) {
+        $u['def_label'] = strtoupper(str_replace('_', ' ', $def_cat));
+        $users[] = $u;
+    }
+}
 
 // Custom Sort for Export: CHQ, PS1, PS2, PS3, PS4, PS5, PS6, then the rest
 $priority_units = ['CHQ', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6'];
@@ -48,7 +66,6 @@ usort($users, function($a, $b) use ($priority_units) {
     if ($posA !== false) return -1;
     if ($posB !== false) return 1;
     
-    // Within the same non-priority group, sort by Unit then Name
     $unitCmp = strcmp($unitA, $unitB);
     if ($unitCmp !== 0) return $unitCmp;
     return strcmp($a['name'] ?? '', $b['name'] ?? '');
@@ -56,7 +73,8 @@ usort($users, function($a, $b) use ($priority_units) {
 
 // Set headers for Excel download
 $unit_label = !empty($unit_filter) ? str_replace(' ', '_', $unit_filter) : "ALL_UNITS";
-$filename = $unit_label . "_Missing_Pictures.xls";
+$cat_label = !empty($cat_filter) ? "_" . strtoupper($cat_filter) : "";
+$filename = $unit_label . $cat_label . "_Missing_Data.xls";
 
 header("Content-Type: application/vnd.ms-excel");
 header("Content-Disposition: attachment; filename=" . $filename);
@@ -71,20 +89,20 @@ header("Expires: 0");
 <table border="1">
     <thead>
         <tr style="background-color: #dc3545; color: white; font-weight: bold;">
-            <th colspan="4">PERSONNEL WITH BMI RECORDS BUT MISSING FORM PICTURES — <?php echo strtoupper($monthName) . " " . $year; ?></th>
+            <th colspan="5">PERSONNEL RECORD SUBMISSION DEFICIENCY — <?php echo strtoupper($monthName) . " " . $year; ?></th>
         </tr>
         <tr style="background-color: #F8D7DA; font-weight: bold;">
             <th>No.</th>
             <th>Name of Personnel</th>
             <th>Rank</th>
             <th>Unit</th>
+            <th>Status</th>
         </tr>
     </thead>
     <tbody>
         <?php
         $count = 1;
         foreach ($users as $user) {
-            // Clean Rank: extract acronym from parentheses if exists
             $rank = $user['rank'] ?? '';
             if (preg_match('/\((.*?)\)/', $rank, $matches)) {
                 $rank = $matches[1];
@@ -95,10 +113,11 @@ header("Expires: 0");
             echo "<td>" . htmlspecialchars($user['name']) . "</td>";
             echo "<td>" . htmlspecialchars($rank) . "</td>";
             echo "<td>" . htmlspecialchars($user['unit'] ?? 'No Unit') . "</td>";
+            echo "<td>" . $user['def_label'] . "</td>";
             echo "</tr>";
         }
         if (empty($users)) {
-            echo "<tr><td colspan='4' style='text-align:center;'>No personnel missing pictures for this period.</td></tr>";
+            echo "<tr><td colspan='5' style='text-align:center;'>No personnel found for this criteria.</td></tr>";
         }
         ?>
     </tbody>
