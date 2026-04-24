@@ -1623,7 +1623,16 @@ function getRankAcronym($rank) {
                 <span class="acpo-header-text acpo-brand-text">ANGELES CITY POLICE OFFICE</span>
             </a>
             <div class="d-flex align-items-center justify-content-end me-3 me-lg-5 pe-lg-5 acpo-btn-container">
-                                <button class="btn border-0 p-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#userSidebar" aria-controls="userSidebar" aria-label="Toggle user menu">
+                <?php if ($_SESSION['role'] === 'admin'): ?>
+                    <button class="btn btn-sm btn-outline-light rounded-pill px-3 d-flex align-items-center me-4" type="button" data-bs-toggle="modal" data-bs-target="#completionModal" style="border-width: 2px;">
+                        <i class="bi bi-person-lines-fill me-2" style="font-size: 1.1rem;"></i>
+                        <span class="text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Completion Tracking</span>
+                        <span class="badge bg-white text-primary rounded-pill ms-2 fw-bold" id="nav-mp-badge" style="font-size: 0.8rem; padding: 0.35em 0.65em;">
+                            <?php echo count($missing_pics_list); ?>
+                        </span>
+                    </button>
+                <?php endif; ?>
+                <button class="btn border-0 p-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#userSidebar" aria-controls="userSidebar" aria-label="Toggle user menu">
                     <i class="bi bi-list text-white hamburger-icon" style="font-size: 2rem; cursor: pointer; position: relative; "></i>
                 </button>
             </div>
@@ -1861,185 +1870,7 @@ function getRankAcronym($rank) {
                         </div>
                     </div>
 
-                    <!-- PERSONNEL MISSING RECORD PICTURES SECTION -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card border-0 shadow-sm rounded-4 bmi-card-adaptive">
-                                <div class="card-body p-4">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h5 class="text-uppercase fw-bold mb-0 small text-secondary">
-                                            Personnel Record Completion 
-                                            <span class="badge bg-danger ms-2 rounded-pill" id="mp-count-badge"><?php echo count($missing_pics_list); ?></span>
-                                        </h5>
-                                        <div class="d-flex gap-2">
-                                            <a href="export_missing_pics.php?month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>&unit=<?php echo urlencode($selected_unit); ?>" 
-                                               id="mp-export-btn"
-                                               class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold">
-                                                <i class="bi bi-file-earmark-excel me-1"></i> Export Excel
-                                            </a>
-                                        </div>
-                                    </div>
 
-                                    <?php if (!empty($missing_pics_list)): ?>
-                                        <div class="row g-2 mb-3 align-items-center">
-                                            <div class="col-md-5 col-lg-5">
-                                                <div class="input-group input-group-sm">
-                                                    <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search small text-secondary"></i></span>
-                                                    <input type="text" id="mp-search-input" class="form-control border-start-0 ps-0" placeholder="Search by name..." style="font-size: 0.8rem;" onkeyup="filterMPTable()">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3 col-lg-3">
-                                                <select id="mp-category-filter" class="form-select form-select-sm" style="font-size: 0.8rem;" onchange="filterMPTable()">
-                                                    <option value="">All Deficiencies</option>
-                                                    <option value="missing_all">Missing Record & Pics</option>
-                                                    <option value="missing_pics">Missing Pictures Only</option>
-                                                    <option value="missing_record">Missing Record Only</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4 col-lg-4">
-                                                <select id="mp-unit-filter" class="form-select form-select-sm" style="font-size: 0.8rem;" onchange="filterMPTable()">
-                                                    <option value="">All Units in List</option>
-                                                    <?php 
-                                                        $priority_units = ['CHQ', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6'];
-                                                        $mp_units = array_unique(array_column($missing_pics_list, 'unit'));
-                                                        
-                                                        usort($mp_units, function($a, $b) use ($priority_units) {
-                                                            $posA = array_search($a, $priority_units);
-                                                            $posB = array_search($b, $priority_units);
-                                                            
-                                                            if ($posA !== false && $posB !== false) return $posA - $posB;
-                                                            if ($posA !== false) return -1;
-                                                            if ($posB !== false) return 1;
-                                                            
-                                                            return strcmp($a ?? '', $b ?? '');
-                                                        });
-
-                                                        foreach ($mp_units as $u) {
-                                                            if (empty($u)) continue;
-                                                            echo "<option value=\"".htmlspecialchars($u)."\">".htmlspecialchars($u)."</option>";
-                                                        }
-                                                    ?>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (empty($missing_pics_list)): ?>
-                                        <div class="text-center py-4 text-secondary opacity-50">
-                                            <i class="bi bi-camera-off display-6 d-block mb-2"></i>
-                                            All personnel with records for this period have their pictures uploaded.
-                                        </div>
-                                    <?php else: ?>
-                                        <!-- Missing Pictures Skeleton -->
-                                        <div id="mp-skeleton" class="loading-skeleton-container">
-                                            <div class="table-responsive">
-                                                <table class="table table-sm align-middle">
-                                                    <thead>
-                                                        <tr>
-                                                            <th class="py-2"><div class="skeleton skeleton-text" style="width: 150px;"></div></th>
-                                                            <th class="py-2"><div class="skeleton skeleton-text" style="width: 80px;"></div></th>
-                                                            <th class="py-2"><div class="skeleton skeleton-text" style="width: 100px;"></div></th>
-                                                            <th class="py-2 text-center"><div class="skeleton skeleton-text mx-auto" style="width: 50px;"></div></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php for($i=0; $i<5; $i++): ?>
-                                                        <tr>
-                                                            <td><div class="skeleton skeleton-text"></div></td>
-                                                            <td><div class="skeleton skeleton-text"></div></td>
-                                                            <td><div class="skeleton skeleton-text"></div></td>
-                                                            <td><div class="skeleton skeleton-text"></div></td>
-                                                        </tr>
-                                                        <?php endfor; ?>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        <div class="table-responsive real-content-container" style="max-height: 400px; overflow-y: auto;">
-                                            <table class="table table-sm table-hover align-middle" id="mp-table">
-                                                <thead class="bg-light sticky-top" style="z-index: 1;">
-                                                    <tr>
-                                                        <th class="small fw-bold py-2">Name of Personnel</th>
-                                                        <th class="small fw-bold py-2">Rank</th>
-                                                        <th class="small fw-bold py-2">Unit</th>
-                                                        <th class="small fw-bold py-2 text-center">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($missing_pics_list as $mp_user): 
-                                                        $mp_rank = $mp_user['rank'] ?? '';
-                                                        if (preg_match('/\((.*?)\)/', $mp_rank, $matches)) {
-                                                            $mp_rank = $matches[1];
-                                                        }
-                                                    ?>
-                                                        <tr class="mp-row" data-name="<?php echo htmlspecialchars(strtolower($mp_user['name'])); ?>" data-unit="<?php echo htmlspecialchars($mp_user['unit'] ?? ''); ?>" data-cat="<?php echo $mp_user['def_cat']; ?>">
-                                                            <td class="small fw-bold">
-                                                                <div class="d-flex flex-column">
-                                                                    <span><?php echo htmlspecialchars($mp_user['name']); ?></span>
-                                                                    <span class="text-mini opacity-75" style="font-size: 0.65rem;">
-                                                                        <?php 
-                                                                            if ($mp_user['def_cat'] == 'missing_all') echo '<span class="text-danger">● Missing Rec & Pics</span>';
-                                                                            elseif ($mp_user['def_cat'] == 'missing_pics') echo '<span class="text-warning">● Missing Pictures Only</span>';
-                                                                            elseif ($mp_user['def_cat'] == 'missing_record') echo '<span class="text-info">● Missing Record Only</span>';
-                                                                        ?>
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                            <td class="small text-secondary"><?php echo htmlspecialchars($mp_rank); ?></td>
-                                                            <td class="small text-secondary"><?php echo htmlspecialchars($mp_user['unit'] ?? 'N/A'); ?></td>
-                                                            <td class="text-center">
-                                                                <a href="editor.php?edit_user_id=<?php echo $mp_user['id']; ?>" class="btn btn-xs btn-outline-primary px-2 py-0" style="font-size: 10px;">
-                                                                    Go to Form
-                                                                </a>
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    <?php endif; ?>
-
-<script>
-function filterMPTable() {
-    const searchVal = document.getElementById('mp-search-input').value.toLowerCase();
-    const unitVal = document.getElementById('mp-unit-filter').value;
-    const catVal = document.getElementById('mp-category-filter').value;
-    const rows = document.querySelectorAll('.mp-row');
-    let visibleCount = 0;
-
-    // Update Export Link dynamically
-    const exportBtn = document.getElementById('mp-export-btn');
-    if (exportBtn) {
-        const baseUrl = 'export_missing_pics.php?month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>';
-        exportBtn.href = `${baseUrl}&unit=${encodeURIComponent(unitVal)}&cat=${encodeURIComponent(catVal)}`;
-    }
-
-    rows.forEach(row => {
-        const name = row.getAttribute('data-name');
-        const unit = row.getAttribute('data-unit');
-        const cat = row.getAttribute('data-cat');
-        
-        const nameMatch = name.includes(searchVal);
-        const unitMatch = !unitVal || unit === unitVal;
-        const catMatch = !catVal || cat === catVal;
-
-        if (nameMatch && unitMatch && catMatch) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-
-    const badge = document.getElementById('mp-count-badge');
-    if (badge) badge.textContent = visibleCount;
-}
-</script>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="mb-4">
                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
@@ -3531,6 +3362,156 @@ function filterMPTable() {
                 }
             });
         });
+    </script>
+
+    <!-- PERSONNEL COMPLETION MODAL -->
+    <div class="modal fade" id="completionModal" tabindex="-1" aria-labelledby="completionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <h5 class="modal-title fw-bold text-uppercase" id="completionModalLabel" style="color: #1700ad;">
+                            Personnel Record Completion Tracking
+                            <span class="badge bg-danger ms-2 rounded-pill" id="mp-count-badge"><?php echo count($missing_pics_list); ?></span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-4 pt-3">
+                    <div class="mb-4">
+                        <p class="text-secondary small mb-3">Monitor personnel with incomplete BMI data for the selected period (<?php echo date('F', mktime(0, 0, 0, $selected_month, 1)) . " " . $selected_year; ?>).</p>
+                        
+                        <?php if (!empty($missing_pics_list)): ?>
+                            <div class="row g-2 mb-3 align-items-center bg-light p-3 rounded-4 mx-0">
+                                <div class="col-md-5 col-lg-5">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search small text-secondary"></i></span>
+                                        <input type="text" id="mp-search-input" class="form-control border-start-0 ps-0" placeholder="Search by name..." style="font-size: 0.85rem;" onkeyup="filterMPTable()">
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-lg-3">
+                                    <select id="mp-category-filter" class="form-select form-select-sm" style="font-size: 0.85rem;" onchange="filterMPTable()">
+                                        <option value="">All Deficiencies</option>
+                                        <option value="missing_all">Missing Record & Pics</option>
+                                        <option value="missing_pics">Missing Pictures Only</option>
+                                        <option value="missing_record">Missing Record Only</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 col-lg-4">
+                                    <select id="mp-unit-filter" class="form-select form-select-sm" style="font-size: 0.85rem;" onchange="filterMPTable()">
+                                        <option value="">All Units in List</option>
+                                        <?php 
+                                            foreach ($mp_units as $u) {
+                                                if (empty($u)) continue;
+                                                echo "<option value=\"".htmlspecialchars($u)."\">".htmlspecialchars($u)."</option>";
+                                            }
+                                        ?>
+                                    </select>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if (empty($missing_pics_list)): ?>
+                        <div class="text-center py-5 text-secondary opacity-50">
+                            <i class="bi bi-camera-off display-6 d-block mb-2"></i>
+                            All personnel with records for this period have their pictures uploaded.
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive" style="max-height: 50vh;">
+                            <table class="table table-hover align-middle" id="mp-table">
+                                <thead class="bg-light sticky-top" style="z-index: 1;">
+                                    <tr>
+                                        <th class="small fw-bold py-3">Name of Personnel</th>
+                                        <th class="small fw-bold py-3">Rank</th>
+                                        <th class="small fw-bold py-3">Unit</th>
+                                        <th class="small fw-bold py-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($missing_pics_list as $mp_user): 
+                                        $mp_rank = $mp_user['rank'] ?? '';
+                                        if (preg_match('/\((.*?)\)/', $mp_rank, $matches)) {
+                                            $mp_rank = $matches[1];
+                                        }
+                                    ?>
+                                        <tr class="mp-row" data-name="<?php echo htmlspecialchars(strtolower($mp_user['name'])); ?>" data-unit="<?php echo htmlspecialchars($mp_user['unit'] ?? ''); ?>" data-cat="<?php echo $mp_user['def_cat']; ?>">
+                                            <td class="py-3">
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-bold"><?php echo htmlspecialchars($mp_user['name']); ?></span>
+                                                    <span class="text-mini" style="font-size: 0.7rem;">
+                                                        <?php 
+                                                            if ($mp_user['def_cat'] == 'missing_all') echo '<span class="text-danger fw-bold">● Missing Rec & Pics</span>';
+                                                            elseif ($mp_user['def_cat'] == 'missing_pics') echo '<span class="text-warning fw-bold">● Missing Pictures Only</span>';
+                                                            elseif ($mp_user['def_cat'] == 'missing_record') echo '<span class="text-info fw-bold">● Missing Record Only</span>';
+                                                        ?>
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="small text-secondary"><?php echo htmlspecialchars($mp_rank); ?></td>
+                                            <td class="small text-secondary"><?php echo htmlspecialchars($mp_user['unit'] ?? 'N/A'); ?></td>
+                                            <td class="text-center">
+                                                <a href="editor.php?edit_user_id=<?php echo $mp_user['id']; ?>" class="btn btn-xs btn-outline-primary rounded-pill px-3 py-1 fw-bold" style="font-size: 11px;">
+                                                    Update Form
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                    <a href="export_missing_pics.php?month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>&unit=<?php echo urlencode($selected_unit); ?>" 
+                       id="mp-export-btn"
+                       class="btn btn-danger rounded-pill px-4 fw-bold">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Export Excel Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function filterMPTable() {
+        const searchVal = document.getElementById('mp-search-input').value.toLowerCase();
+        const unitVal = document.getElementById('mp-unit-filter').value;
+        const catVal = document.getElementById('mp-category-filter').value;
+        const rows = document.querySelectorAll('.mp-row');
+        let visibleCount = 0;
+
+        // Update Export Link dynamically
+        const exportBtn = document.getElementById('mp-export-btn');
+        if (exportBtn) {
+            const baseUrl = 'export_missing_pics.php?month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>';
+            exportBtn.href = `${baseUrl}&unit=${encodeURIComponent(unitVal)}&cat=${encodeURIComponent(catVal)}`;
+        }
+
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name');
+            const unit = row.getAttribute('data-unit');
+            const cat = row.getAttribute('data-cat');
+            
+            const nameMatch = name.includes(searchVal);
+            const unitMatch = !unitVal || unit === unitVal;
+            const catMatch = !catVal || cat === catVal;
+
+            if (nameMatch && unitMatch && catMatch) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update count badges
+        const modalBadge = document.getElementById('mp-count-badge');
+        const navBadge = document.getElementById('nav-mp-badge');
+        if (modalBadge) modalBadge.textContent = visibleCount;
+        if (navBadge) navBadge.textContent = visibleCount;
+    }
     </script>
 </body>
 </html>
