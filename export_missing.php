@@ -27,8 +27,13 @@ $sql = "SELECT u.* FROM users u WHERE u.role = 'user'
 $params = [$month, $year];
 
 if (!empty($unit_filter)) {
-    $sql .= " AND u.unit = ?";
-    $params[] = $unit_filter;
+    if ($unit_filter === 'CHQ') {
+        $chq_branches = "('ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC')";
+        $sql .= " AND (u.unit = 'CHQ' OR u.unit IN $chq_branches)";
+    } else {
+        $sql .= " AND u.unit = ?";
+        $params[] = $unit_filter;
+    }
 }
 
 $sql .= " ORDER BY u.name ASC";

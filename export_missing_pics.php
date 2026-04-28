@@ -13,6 +13,9 @@ $cat_filter = isset($_GET['cat']) ? $_GET['cat'] : '';
 
 $monthName = date('F', mktime(0, 0, 0, (int)$month, 1));
 
+// CHQ Sub-Units: These branches are part of CHQ for tracking/filtering purposes
+$chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+
 // Optimized logic to match main.php's deficiency tracking
 $sql = "SELECT u.id, u.name, u.rank, u.unit, u.img_front, u.img_right, u.img_left,
                (CASE WHEN hr.user_id IS NOT NULL THEN 1 ELSE 0 END) as has_monthly_record
@@ -27,8 +30,14 @@ $sql = "SELECT u.id, u.name, u.rank, u.unit, u.img_front, u.img_right, u.img_lef
 $params = [$month, $year];
 
 if (!empty($unit_filter)) {
-    $sql .= " AND u.unit = ?";
-    $params[] = $unit_filter;
+    if ($unit_filter === 'CHQ') {
+        $chq_placeholders = implode(',', array_fill(0, count($chq_sub_units), '?'));
+        $sql .= " AND u.unit IN ($chq_placeholders)";
+        $params = array_merge($params, $chq_sub_units);
+    } else {
+        $sql .= " AND u.unit = ?";
+        $params[] = $unit_filter;
+    }
 }
 
 $stmt = $pdo->prepare($sql);

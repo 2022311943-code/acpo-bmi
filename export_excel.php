@@ -11,6 +11,7 @@ $start_year = isset($_GET['start_year']) ? $_GET['start_year'] : date('Y');
 $end_month = isset($_GET['end_month']) ? $_GET['end_month'] : date('m');
 $end_year = isset($_GET['end_year']) ? $_GET['end_year'] : date('Y');
 $unit_filter = isset($_GET['unit_filter']) ? $_GET['unit_filter'] : 'ALL';
+$record_filter = isset($_GET['record_filter']) ? $_GET['record_filter'] : 'ALL';
 
 $start_date = "$start_year-$start_month-01";
 $end_date = date('Y-m-t', strtotime("$end_year-$end_month-01"));
@@ -99,8 +100,13 @@ header("Expires: 0");
         if ($unit_filter === 'NO_UNIT') {
             $stmt_users = $pdo->query("SELECT * FROM users WHERE role = 'user' AND (unit IS NULL OR unit = '' OR unit = 'No Unit') ORDER BY name ASC");
         } elseif ($unit_filter !== 'ALL') {
-            $stmt_users = $pdo->prepare("SELECT * FROM users WHERE role = 'user' AND unit = ? ORDER BY name ASC");
-            $stmt_users->execute([$unit_filter]);
+            if ($unit_filter === 'CHQ') {
+                $chq_branches = "('ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC')";
+                $stmt_users = $pdo->query("SELECT * FROM users WHERE role = 'user' AND (unit = 'CHQ' OR unit IN $chq_branches) ORDER BY name ASC");
+            } else {
+                $stmt_users = $pdo->prepare("SELECT * FROM users WHERE role = 'user' AND unit = ? ORDER BY name ASC");
+                $stmt_users->execute([$unit_filter]);
+            }
         } else {
             $stmt_users = $pdo->query("SELECT * FROM users WHERE role = 'user' ORDER BY name ASC");
         }
@@ -121,6 +127,26 @@ header("Expires: 0");
             $stmt_monthly->execute([$user['id'], $start_date, $end_date]);
             while ($row = $stmt_monthly->fetch(PDO::FETCH_ASSOC)) {
                 $health_map[$row['ym']] = $row;
+            }
+
+            // Evaluate Record Filter
+            if ($record_filter !== 'ALL') {
+                $has_missing = false;
+                foreach ($months_in_range as $month) {
+                    $m_data = $health_map[$month['key']] ?? null;
+                    $bmi_class = $m_data['bmi_classification'] ?? '';
+                    if (empty($bmi_class) || $bmi_class === 'N/A' || $bmi_class === '0') {
+                        $has_missing = true;
+                        break;
+                    }
+                }
+                
+                if ($record_filter === 'DEFICIENT' && !$has_missing) {
+                    continue; // Skip because user has no missing records
+                }
+                if ($record_filter === 'COMPLETED' && $has_missing) {
+                    continue; // Skip because user has missing records
+                }
             }
 
             echo "<tr>";

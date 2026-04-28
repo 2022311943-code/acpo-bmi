@@ -231,10 +231,19 @@ if ($is_admin) {
         $params_comp = [$selected_month, $selected_year];
 
         if (!empty($selected_unit)) {
-            $where_total .= " AND u.unit = ?";
-            $where_comp .= " AND u.unit = ?";
-            $params_total[] = $selected_unit;
-            $params_comp[] = $selected_unit;
+            if ($selected_unit === 'CHQ') {
+                $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+                $chq_placeholders = implode(',', array_fill(0, count($chq_sub_units), '?'));
+                $where_total .= " AND u.unit IN ($chq_placeholders)";
+                $where_comp .= " AND u.unit IN ($chq_placeholders)";
+                $params_total = array_merge($params_total, $chq_sub_units);
+                $params_comp = array_merge($params_comp, $chq_sub_units);
+            } else {
+                $where_total .= " AND u.unit = ?";
+                $where_comp .= " AND u.unit = ?";
+                $params_total[] = $selected_unit;
+                $params_comp[] = $selected_unit;
+            }
         }
 
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM users u WHERE $where_total");
@@ -250,12 +259,16 @@ if ($is_admin) {
         }
 
         // 2. Units Ranking (Always keep top 10 globally for context, OR filter if requested)
-        $rank_sort = isset($_GET['rank_sort']) ? $_GET['rank_sort'] : 'nc_count';
-        $valid_sorts = ['nc_count', 'sev_uw', 'uw', 'normal', 'acceptable', 'ow', 'obese1', 'obese2', 'obese3'];
-        if (!in_array($rank_sort, $valid_sorts)) $rank_sort = 'nc_count';
+        $rank_sort = isset($_GET['rank_sort']) ? $_GET['rank_sort'] : 'unit_seq';
+        $valid_sorts = ['unit_seq', 'nc_count', 'sev_uw', 'uw', 'normal', 'acceptable', 'ow', 'obese1', 'obese2', 'obese3'];
+        if (!in_array($rank_sort, $valid_sorts)) $rank_sort = 'unit_seq';
+
+        $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+        $chq_list_sql = "'" . implode("','", $chq_sub_units) . "'";
+        $mapped_unit_sql = "CASE WHEN u.unit IN ($chq_list_sql) THEN 'CHQ' ELSE u.unit END";
 
         $nc_sql = "
-            SELECT u.unit, 
+            SELECT ($mapped_unit_sql) as unit, 
                    SUM(CASE WHEN h.bmi_classification NOT IN ('NORMAL', 'ACCEPTABLE BMI', 'N/A', '0', '') AND h.bmi_classification IS NOT NULL THEN 1 ELSE 0 END) as nc_count,
                    SUM(CASE WHEN h.bmi_classification = 'SEVERELY UNDERWEIGHT' THEN 1 ELSE 0 END) as sev_uw,
                    SUM(CASE WHEN h.bmi_classification = 'UNDERWEIGHT' THEN 1 ELSE 0 END) as uw,
@@ -276,13 +289,36 @@ if ($is_admin) {
             WHERE u.role = 'user' 
               AND u.unit IS NOT NULL AND u.unit != ''
         ";
+        $nc_params = [$selected_month, $selected_year];
         if (!empty($selected_unit)) {
-            $nc_sql .= " AND u.unit = ?";
-            $nc_params = [$selected_month, $selected_year, $selected_unit];
-        } else {
-            $nc_params = [$selected_month, $selected_year];
+            if ($selected_unit === 'CHQ') {
+                $chq_placeholders = implode(',', array_fill(0, count($chq_sub_units), '?'));
+                $nc_sql .= " AND u.unit IN ($chq_placeholders)";
+                $nc_params = array_merge($nc_params, $chq_sub_units);
+            } else {
+                $nc_sql .= " AND u.unit = ?";
+                $nc_params[] = $selected_unit;
+            }
         }
-        $nc_sql .= " GROUP BY u.unit ORDER BY $rank_sort DESC";
+        $unit_sequence_sql = "CASE ($mapped_unit_sql) " .
+                             "WHEN 'CHQ' THEN 1 " .
+                             "WHEN 'PS1' THEN 2 " .
+                             "WHEN 'PS2' THEN 3 " .
+                             "WHEN 'PS3' THEN 4 " .
+                             "WHEN 'PS4' THEN 5 " .
+                             "WHEN 'PS5' THEN 6 " .
+                             "WHEN 'PS6' THEN 7 " .
+                             "WHEN 'MPU' THEN 8 " .
+                             "WHEN 'TEU' THEN 9 " .
+                             "WHEN 'TPU' THEN 10 " .
+                             "WHEN 'CMFC' THEN 11 " .
+                             "ELSE 99 END ASC";
+
+        if ($rank_sort === 'unit_seq') {
+            $nc_sql .= " GROUP BY ($mapped_unit_sql) ORDER BY $unit_sequence_sql";
+        } else {
+            $nc_sql .= " GROUP BY ($mapped_unit_sql) ORDER BY $rank_sort DESC, $unit_sequence_sql";
+        }
         
         $stmt = $pdo->prepare($nc_sql);
         $stmt->execute($nc_params);
@@ -327,8 +363,15 @@ if ($is_admin) {
         ";
         $deficiency_params = [$selected_month, $selected_year];
         if (!empty($selected_unit)) {
-            $deficiency_sql .= " AND u.unit = ?";
-            $deficiency_params[] = $selected_unit;
+            if ($selected_unit === 'CHQ') {
+                $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+                $chq_placeholders = implode(',', array_fill(0, count($chq_sub_units), '?'));
+                $deficiency_sql .= " AND u.unit IN ($chq_placeholders)";
+                $deficiency_params = array_merge($deficiency_params, $chq_sub_units);
+            } else {
+                $deficiency_sql .= " AND u.unit = ?";
+                $deficiency_params[] = $selected_unit;
+            }
         }
         $deficiency_sql .= " ORDER BY u.name ASC";
         
@@ -394,202 +437,7 @@ if ($is_admin) {
             $health_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
             // Fetch ALL historical records to build a complete weight picture
-            $stmt = $pdo->prepare("SELECT weight, monthly_weights, date_taken FROM health_records WHERE user_id = ? ORDER BY date_taken ASC");
-            $stmt->execute([$user_data['id']]);
-            $all_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            $json_weights = [];
-            $record_weights = [];
-            foreach ($all_records as $rec) {
-                // Collect Record Weight (Primary)
-                $m_key_rec = date('Y-m', strtotime($rec['date_taken']));
-                if (!empty($rec['weight']) && $rec['weight'] > 0) {
-                    $record_weights[$m_key_rec] = $rec['weight'];
-                }
-
-                // Collect Monitoring Weights (Filler)
-                $weights_json = json_decode($rec['monthly_weights'] ?? '[]', true);
-                if (is_array($weights_json)) {
-                    foreach ($weights_json as $mk => $wv) {
-                        if (!empty($wv)) {
-                            $json_weights[$mk] = $wv;
-                        }
-                    }
-                }
-            }
-            // RECORD weights always win over JSON historical weights
-            $cumulative_weights = array_merge($json_weights, $record_weights);
-
-            // FILTER correctly for display: Show NO weights AFTER the selected date
-            $display_weights = [];
-            foreach ($cumulative_weights as $mk => $wv) {
-                $check_date = $mk . "-01";
-                if (strtotime($check_date) <= strtotime($filter_date)) {
-                    $display_weights[$mk] = $wv;
-                }
-            }
-            $monthly_weights = $display_weights;
-
-            // Prepare Progress Chart Data
-            $chartMonths = array_keys($cumulative_weights);
-            sort($chartMonths);
-            
-            $latestHeight = $health_data['height'] ?? 0;
-            if (!$latestHeight) {
-                foreach($all_records as $r) {
-                    if (!empty($r['height'])) { $latestHeight = $r['height']; break; }
-                }
-            }
-
-            $bmiData = [];
-            $labels = [];
-            foreach ($chartMonths as $m) {
-                $w = $cumulative_weights[$m];
-                if ($latestHeight > 0) {
-                    $hM = $latestHeight / 100;
-                    $bmi = $w / ($hM * $hM);
-                    $bmiData[] = round($bmi, 2);
-                    $labels[] = date('M Y', strtotime($m . "-01"));
-                }
-            }
-
-            // Age Threshold
-            $thresholdVal = 24.9;
-            if ($age >= 30 && $age <= 34) $thresholdVal = 25.0;
-            elseif ($age >= 35 && $age <= 39) $thresholdVal = 25.5;
-            elseif ($age >= 40 && $age <= 44) $thresholdVal = 26.0;
-            elseif ($age >= 45 && $age <= 50) $thresholdVal = 26.5;
-            elseif ($age >= 51) $thresholdVal = 27.0;
-
-            $thresholdData = array_fill(0, count($bmiData), $thresholdVal);
-            $normalLine = array_fill(0, count($bmiData), 24.9);
-        }
-    } catch (PDOException $e) {
-        $monthly_weights = [];
-    }
-}
-
-// Helper for safe display (same as in editor.php)
-function hval($data, $key, $default = '') {
-    return isset($data[$key]) && $data[$key] !== '' ? htmlspecialchars($data[$key]) : $default;
-}
-function hval_raw($data, $key, $default = '') {
-    return isset($data[$key]) ? $data[$key] : $default;
-}
-function getRankAcronym($rank) {
-    if (preg_match('/\((.*?)\)/', $rank, $matches)) {
-        return $matches[1];
-    }
-    return $rank;
-}
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACPO - Main Dashboard</title>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
-    <style>
-        @font-face {
-            font-family: 'Agrandir';
-            src: url('fonts/Agrandir-Bold.woff2') format('woff2'),
-                 url('fonts/Agrandir-Bold.woff') format('woff');
-        $stmt->execute($params_comp);
-        $compliance_summary['completed'] = $stmt->fetchColumn();
-
-        if ($compliance_summary['total'] > 0) {
-            $compliance_summary['rate'] = round(($compliance_summary['completed'] / $compliance_summary['total']) * 100);
-        }
-
-        // 2. Units Ranking (Always keep top 5 globally for context, OR filter if requested)
-        // Let's keep it global so the admin can see where they stand, but we could also filter it.
-        // The user said "compliance rate... should show of that office only".
-        // The list below is "Units with Most Non-Compliant". If one unit is selected, maybe we show only that unit's detail?
-        // Let's modify it to only show the selected unit if the filter is active.
-        $nc_sql = "
-            SELECT u.unit, COUNT(*) as nc_count
-            FROM users u
-            INNER JOIN health_records h ON u.id = h.user_id
-            WHERE u.role = 'user' 
-              AND MONTH(h.date_taken) = ? 
-              AND YEAR(h.date_taken) = ?
-              AND h.bmi_classification NOT IN ('NORMAL', 'ACCEPTABLE BMI')
-              AND u.unit IS NOT NULL AND u.unit != ''
-        ";
-        if (!empty($selected_unit)) {
-            $nc_sql .= " AND u.unit = ?";
-            $nc_params = [$selected_month, $selected_year, $selected_unit];
-        } else {
-            $nc_params = [$selected_month, $selected_year];
-        }
-        $nc_sql .= " GROUP BY u.unit ORDER BY nc_count DESC LIMIT 5";
-        
-        $stmt = $pdo->prepare($nc_sql);
-        $stmt->execute($nc_params);
-        $unit_compliance_rankings = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Helper to get unit color
-        function getUnitColor($unitName) {
-            $unitMap = [
-                'CHQ'   => '#1700ad', // Navy
-                'PS1'   => '#0d6efd', // Blue
-                'PS2'   => '#6610f2', // Indigo
-                'PS3'   => '#6f42c1', // Purple
-                'PS4'   => '#d63384', // Pink
-                'PS5'   => '#dc3545', // Red
-                'PS6'   => '#fd7e14', // Orange
-                'CMFC'  => '#ff8c00', // Dark Orange
-                'TPU'   => '#198754', // Green
-                'MPU'   => '#20c997'  // Teal
-            ];
-            return $unitMap[$unitName] ?? '#6c757d'; // Default gray
-        }
-
-    } catch (PDOException $e) {
-        $users_list = [];
-    }
-} else {
-    // For Regular Users: Fetch their own data for Health Record display
-    $user_data = [];
-    $health_data = [];
-    $age = 0;
-
-    try {
-        // Get User Details
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$_SESSION['user_id']]);
-        $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($user_data) {
-            // Calculate Age
-            if ($user_data['birthday']) {
-                $dob = new DateTime($user_data['birthday']);
-                $now = new DateTime();
-                $age = $now->diff($dob)->y;
-            } else {
-                $age = $user_data['age'] ?? 0;
-            }
-
-            // Handle Filter Values
-            $selected_month = isset($_GET['month']) ? $_GET['month'] : date('m');
-            $selected_year = isset($_GET['year']) ? $_GET['year'] : date('Y');
-            $filter_date = "$selected_year-$selected_month-01";
-
-            // Get Health Record for specific month/year (for the main results)
-            $stmt = $pdo->prepare("SELECT * FROM health_records WHERE user_id = ? AND MONTH(date_taken) = ? AND YEAR(date_taken) = ? ORDER BY date_taken DESC LIMIT 1");
-            $stmt->execute([$_SESSION['user_id'], $selected_month, $selected_year]);
-            $health_data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            // Fetch ALL historical records to build a complete weight picture
-            $stmt = $pdo->prepare("SELECT weight, monthly_weights, date_taken FROM health_records WHERE user_id = ? ORDER BY date_taken ASC");
+            $stmt = $pdo->prepare("SELECT weight, height, monthly_weights, date_taken FROM health_records WHERE user_id = ? ORDER BY date_taken ASC");
             $stmt->execute([$user_data['id']]);
             $all_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
@@ -1794,9 +1642,10 @@ function getRankAcronym($rank) {
                                         <h5 class="text-uppercase fw-bold mb-0 small text-secondary">Units Tracking</h5>
                                         <div class="dropdown no-print">
                                              <button class="btn btn-sm btn-outline-secondary dropdown-toggle rounded-pill px-3 border-0 bg-light-subtle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                Sorted by: <?php echo strtoupper(str_replace('_', ' ', $rank_sort == 'nc_count' ? 'Non-Compliant' : $rank_sort)); ?>
+                                                Sorted by: <?php echo strtoupper(str_replace('_', ' ', $rank_sort == 'nc_count' ? 'Non-Compliant' : ($rank_sort == 'unit_seq' ? 'Unit Priority' : $rank_sort))); ?>
                                              </button>
                                              <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                                                 <li><a class="dropdown-item small fw-bold" href="?rank_sort=unit_seq&month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>&unit=<?php echo $selected_unit; ?>">UNIT PRIORITY SEQUENCE</a></li>
                                                  <li><a class="dropdown-item small fw-bold" href="?rank_sort=nc_count&month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>&unit=<?php echo $selected_unit; ?>">TOTAL NON-COMPLIANT</a></li>
                                                  <li><hr class="dropdown-divider"></li>
                                                  <li><a class="dropdown-item small" href="?rank_sort=sev_uw&month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>&unit=<?php echo $selected_unit; ?>">SEVERELY UNDERWEIGHT</a></li>
@@ -2423,6 +2272,16 @@ function getRankAcronym($rank) {
                                             </select>
                                             <div class="form-text small opacity-75 mt-1">Leave as "ALL UNITS" to extract everything.</div>
                                         </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label small fw-bold text-secondary text-uppercase">Record Filter</label>
+                                            <select name="record_filter" class="form-select" required>
+                                                <option value="ALL">All Personnel</option>
+                                                <option value="DEFICIENT">Only Deficient (Missing, 0, N/A, Blank records)</option>
+                                                <option value="COMPLETED">Only Completed (No missing records)</option>
+                                            </select>
+                                            <div class="form-text small opacity-75 mt-1">Filter by completion status across the selected months.</div>
+                                        </div>
                                     </div>
                                     
                                     <div class="text-end mt-4">
@@ -2674,7 +2533,7 @@ function getRankAcronym($rank) {
                         foreach($months as $m) {
                             $raw = $monthly_weights[$m] ?? '';
                             if (is_numeric($raw)) {
-                                $m_vals[$m] = (string)intval(round((float)$raw));
+                                $m_vals[$m] = number_format((float)$raw, 1);
                             } else {
                                 $m_vals[$m] = $raw;
                             }
@@ -2747,7 +2606,13 @@ function getRankAcronym($rank) {
 
                 // Unit match: check if the selected unit appears in this row's comma-separated units
                 const unitParts = rowUnit.split(',').map(function(u) { return u.trim(); });
-                const matchesUnit = unitParts.indexOf(unitName) !== -1;
+                let matchesUnit = false;
+                if (unitName === 'CHQ') {
+                    const chqBranches = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU'];
+                    matchesUnit = unitParts.some(u => chqBranches.includes(u));
+                } else {
+                    matchesUnit = unitParts.indexOf(unitName) !== -1;
+                }
                 const matchesBmi = rowBmiClass === bmiCategory.trim();
 
                 row.style.display = (matchesUnit && matchesBmi) ? '' : 'none';
@@ -2785,7 +2650,13 @@ function getRankAcronym($rank) {
             rows.forEach(function(row) {
                 const rowUnit = (row.getAttribute('data-unit') || '');
                 const unitParts = rowUnit.split(',').map(function(u) { return u.trim(); });
-                const matchesUnit = unitParts.indexOf(unitName) !== -1;
+                let matchesUnit = false;
+                if (unitName === 'CHQ') {
+                    const chqBranches = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU'];
+                    matchesUnit = unitParts.some(u => chqBranches.includes(u));
+                } else {
+                    matchesUnit = unitParts.indexOf(unitName) !== -1;
+                }
                 row.style.display = matchesUnit ? '' : 'none';
             });
 
@@ -2980,7 +2851,7 @@ function getRankAcronym($rank) {
                 const genderVal = genderFilter ? genderFilter.value : '';
                 const rankVal = document.getElementById('rankFilter') ? document.getElementById('rankFilter').value : '';
                 const bmiClassVal = document.getElementById('bmiClassFilter') ? document.getElementById('bmiClassFilter').value : '';
-                const rows = document.querySelectorAll('tbody tr:not(.no-results)');
+                const rows = document.querySelectorAll('.table-masterlist tbody tr:not(.no-results)');
 
                 rows.forEach(row => {
                     // Extract text for search (ignoring actions and pfp column)
@@ -2989,15 +2860,24 @@ function getRankAcronym($rank) {
                         .map(c => c.textContent.toLowerCase())
                         .join(' ');
                     
-                    const rowUnit = row.getAttribute('data-unit');
-                    const rowStatus = row.getAttribute('data-status');
+                    const rowUnit = row.getAttribute('data-unit') || '';
+                    const rowStatus = row.getAttribute('data-status') || '';
                     const rowGender = row.getAttribute('data-gender') || '';
                     const rowRank = row.getAttribute('data-rank') || '';
                     const rowBmiClass = row.getAttribute('data-bmi-class') || '';
                     
                     const matchesSearch = rowText.includes(searchVal);
                     // Fixed unit matching for multiple units
-                    const matchesUnit = unitVal === "" || rowUnit.split(',').map(u => u.trim()).includes(unitVal);
+                    let matchesUnit = false;
+                    const rowUnits = rowUnit.split(',').map(u => u.trim());
+                    if (unitVal === "") {
+                        matchesUnit = true;
+                    } else if (unitVal === "CHQ") {
+                        const chqBranches = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+                        matchesUnit = rowUnits.some(u => chqBranches.includes(u));
+                    } else {
+                        matchesUnit = rowUnits.includes(unitVal);
+                    }
                     const matchesStatus = statusVal === "" || rowStatus === statusVal;
                     const matchesGender = genderVal === "" || rowGender.toLowerCase() === genderVal.toLowerCase();
                     const matchesRank = rankVal === "" || rowRank === rankVal;
@@ -3401,6 +3281,18 @@ function getRankAcronym($rank) {
                                     <select id="mp-unit-filter" class="form-select form-select-sm" style="font-size: 0.85rem;" onchange="filterMPTable()">
                                         <option value="">All Units in List</option>
                                         <?php 
+                                            $priority_units = ['CHQ', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PS6'];
+                                            $mp_units = array_unique(array_column($missing_pics_list, 'unit'));
+                                            
+                                            usort($mp_units, function($a, $b) use ($priority_units) {
+                                                $posA = array_search($a, $priority_units);
+                                                $posB = array_search($b, $priority_units);
+                                                if ($posA !== false && $posB !== false) return $posA - $posB;
+                                                if ($posA !== false) return -1;
+                                                if ($posB !== false) return 1;
+                                                return strcmp($a ?? '', $b ?? '');
+                                            });
+
                                             foreach ($mp_units as $u) {
                                                 if (empty($u)) continue;
                                                 echo "<option value=\"".htmlspecialchars($u)."\">".htmlspecialchars($u)."</option>";
@@ -3495,7 +3387,16 @@ function getRankAcronym($rank) {
             const cat = row.getAttribute('data-cat');
             
             const nameMatch = name.includes(searchVal);
-            const unitMatch = !unitVal || unit === unitVal;
+            
+            const chqBranches = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU'];
+            let unitMatch = false;
+            if (!unitVal) {
+                unitMatch = true;
+            } else if (unitVal === 'CHQ') {
+                unitMatch = chqBranches.includes(unit);
+            } else {
+                unitMatch = unit === unitVal;
+            }
             const catMatch = !catVal || cat === catVal;
 
             if (nameMatch && unitMatch && catMatch) {
