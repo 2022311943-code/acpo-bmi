@@ -134,8 +134,8 @@ header("Expires: 0");
                 $has_missing = false;
                 foreach ($months_in_range as $month) {
                     $m_data = $health_map[$month['key']] ?? null;
-                    $bmi_class = $m_data['bmi_classification'] ?? '';
-                    if (empty($bmi_class) || $bmi_class === 'N/A' || $bmi_class === '0') {
+                    $weight = $m_data['weight'] ?? 0;
+                    if (empty($weight) || $weight <= 0) {
                         $has_missing = true;
                         break;
                     }

@@ -333,6 +333,111 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
+    <?php if (isset($_GET['print_mode']) && $_GET['print_mode'] == '1'): ?>
+    <style>
+        /* Replicate @media print rules as screen CSS for html2canvas capture */
+        body {
+            background-color: white !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        [data-bs-theme="dark"] body {
+            background-color: white !important;
+            color: black !important;
+        }
+        .acpo-nav, 
+        .btn-primary,
+        .btn-dark,
+        .nav-tabs,
+        .nav-pills,
+        .offcanvas, .toast-container, .modal,
+        .admin-nav-toggle, .reminder-box,
+        .card.border-0.shadow-sm.rounded-4.overflow-hidden.mb-4,
+        .hamburger-icon, .user-sidebar, .dropdown-menu,
+        #editBtn, #cancelBtn, #confirmBtn,
+        footer {
+            display: none !important;
+        }
+        .bmi-container {
+            background-color: white !important;
+            color: black !important;
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+            margin: 0 auto !important;
+            width: 1300px !important;
+            max-width: 1300px !important;
+        }
+        [data-bs-theme="dark"] .bmi-container {
+            background-color: white !important;
+            color: black !important;
+            border-color: black !important;
+        }
+        /* Force background colors exactly like print */
+        .bg-lavender, [data-bs-theme="dark"] .bg-lavender {
+            background-color: #e2e4ff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .bg-purple, [data-bs-theme="dark"] .bg-purple {
+            background-color: #7b85ff !important;
+            color: #fff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .bg-white, [data-bs-theme="dark"] .bg-white {
+            background-color: white !important;
+            color: black !important;
+        }
+        .border-black, [data-bs-theme="dark"] .border-black {
+            border-color: #000 !important;
+        }
+        .left-col, .right-col, .pic-box,
+        [data-bs-theme="dark"] .left-col, 
+        [data-bs-theme="dark"] .right-col,
+        [data-bs-theme="dark"] .pic-box {
+            border-color: #000 !important;
+        }
+        /* Constrain photo area - don't let flex-grow stretch photos */
+        .pics-area {
+            flex-grow: 0 !important;
+        }
+        .pic-box {
+            min-height: 0 !important;
+            padding: 0 !important;
+            max-height: 200px !important;
+        }
+        .pic-box img {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 200px !important;
+            object-fit: contain !important;
+            display: block !important;
+            position: relative !important;
+        }
+        .view-label { padding: 2px 0 !important; font-size: 0.75rem !important; }
+        /* Monthly monitoring - ensure cells render properly */
+        .monthly-col-yr { font-size: 0.75rem !important; padding: 2px 6px !important; }
+        .monthly-col-prev { font-size: 0.7rem !important; padding: 2px 4px !important; }
+        .monthly-col-curr { font-size: 0.7rem !important; padding: 2px 0 !important; }
+        .monthly-col-curr .flex-fill,
+        .monthly-col-prev .w-50 { 
+            font-size: 0.65rem !important; 
+            text-align: center !important;
+        }
+        main {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        /* Force tab pane visible */
+        .tab-pane { display: block !important; opacity: 1 !important; }
+        .tab-content > .tab-pane { display: block !important; }
+        .editable-input { display: none !important; }
+        .editable-text { display: inline !important; }
+        .container, .container-fluid { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+    </style>
+    <?php endif; ?>
+
     <style>
         @font-face {
             font-family: 'Agrandir';
@@ -1455,12 +1560,12 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                                         <span class="editable-text" id="text-unit"><?php echo hval($user_data, 'unit'); ?></span>
                                         <input class="form-control form-control-sm d-none editable-input" list="pnp-units" name="unit_office" id="input-unit" value="<?php echo hval($user_data, 'unit'); ?>" style="height: 20px; font-size: 0.85rem; display: inline-block; width: auto;">
                                         <datalist id="pnp-units">
-                                            <option value="CHQ"><option value="PS1"><option value="PS2"><option value="PS3">
-                                            <option value="PS4"><option value="PS5"><option value="PS6"><option value="CMFC">
-                                            <option value="TPU"><option value="CIU"><option value="MPU"><option value="CARMU">
-                                            <option value="AOMU"><option value="CCADU"><option value="ARDDO"><option value="CPPU">
-                                            <option value="GSO"><option value="DEU"><option value="TEU"><option value="COMU">
-                                            <option value="ODCDO">
+                                            <option value="CHQ"></option><option value="PS1"></option><option value="PS2"></option><option value="PS3"></option>
+                                            <option value="PS4"></option><option value="PS5"></option><option value="PS6"></option><option value="CMFC"></option>
+                                            <option value="TPU"></option><option value="CIU"></option><option value="MPU"></option><option value="CARMU"></option>
+                                            <option value="AOMU"></option><option value="CCADU"></option><option value="ARDDO"></option><option value="CPPU"></option>
+                                            <option value="GSO"></option><option value="DEU"></option><option value="TEU"></option><option value="COMU"></option>
+                                            <option value="ODCDO"></option>
                                         </datalist>
                                     </div>
                                 </div>
@@ -1847,7 +1952,21 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                 const heightCm = parseFloat(inputHeight.value);
                 const weightKg = parseFloat(inputWeight.value);
                 
-                if (!heightCm || !weightKg) return;
+                if (!heightCm || !weightKg) {
+                    updateField('bmi_result', '0.00');
+                    updateField('bmi_classification', 'N/A');
+                    updateField('normal_weight', 'N/A');
+                    updateField('weight_to_lose', 'N/A');
+                    updateField('intervention', 'N/A');
+                    
+                    const textClass = document.getElementById('text-class');
+                    const inputClass = document.getElementById('input-class');
+                    const textWhoClass = document.getElementById('text-who-class');
+                    if (textClass) textClass.textContent = 'N/A';
+                    if (inputClass) inputClass.value = 'N/A';
+                    if (textWhoClass) textWhoClass.textContent = 'N/A';
+                    return;
+                }
 
                 // BMI Calculation
                 const heightM = heightCm / 100;

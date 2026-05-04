@@ -23,7 +23,7 @@ $sql = "SELECT u.id, u.name, u.rank, u.unit, u.img_front, u.img_right, u.img_lef
         LEFT JOIN (
             SELECT DISTINCT user_id FROM health_records 
             WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
-            AND bmi_classification IS NOT NULL AND bmi_classification != '' AND bmi_classification != 'N/A' AND bmi_classification != '0'
+            AND weight IS NOT NULL AND weight > 0
         ) hr ON u.id = hr.user_id
         WHERE u.role = 'user'";
 

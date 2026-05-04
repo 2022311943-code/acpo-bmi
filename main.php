@@ -204,7 +204,7 @@ if ($is_admin) {
                     SELECT MAX(id)
                     FROM health_records
                     WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
-                      AND bmi_classification IS NOT NULL AND bmi_classification != '' AND bmi_classification != 'N/A' AND bmi_classification != '0'
+                      AND weight IS NOT NULL AND weight > 0
                     GROUP BY user_id
                 )
             ) hr ON u.id = hr.user_id
@@ -250,7 +250,7 @@ if ($is_admin) {
         $stmt->execute($params_total);
         $compliance_summary['total'] = $stmt->fetchColumn();
 
-        $stmt = $pdo->prepare("SELECT COUNT(DISTINCT h.user_id) FROM health_records h JOIN users u ON h.user_id = u.id WHERE $where_comp AND h.bmi_classification IS NOT NULL AND h.bmi_classification != '' AND h.bmi_classification != 'N/A' AND h.bmi_classification != '0'");
+        $stmt = $pdo->prepare("SELECT COUNT(DISTINCT h.user_id) FROM health_records h JOIN users u ON h.user_id = u.id WHERE $where_comp AND h.weight IS NOT NULL AND h.weight > 0");
         $stmt->execute($params_comp);
         $compliance_summary['completed'] = $stmt->fetchColumn();
 
@@ -279,13 +279,13 @@ if ($is_admin) {
                    SUM(CASE WHEN h.bmi_classification = 'OBESE CLASS 2' THEN 1 ELSE 0 END) as obese2,
                    SUM(CASE WHEN h.bmi_classification = 'OBESE CLASS 3' THEN 1 ELSE 0 END) as obese3
             FROM users u
-            INNER JOIN health_records h ON u.id = h.user_id
-            INNER JOIN (
+            LEFT JOIN (
                 SELECT user_id, MAX(id) as latest_id
                 FROM health_records
                 WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
                 GROUP BY user_id
-            ) latest ON h.id = latest.latest_id
+            ) latest ON u.id = latest.user_id
+            LEFT JOIN health_records h ON latest.latest_id = h.id
             WHERE u.role = 'user' 
               AND u.unit IS NOT NULL AND u.unit != ''
         ";
@@ -357,7 +357,7 @@ if ($is_admin) {
             LEFT JOIN (
                 SELECT DISTINCT user_id FROM health_records 
                 WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
-                AND bmi_classification IS NOT NULL AND bmi_classification != '' AND bmi_classification != 'N/A' AND bmi_classification != '0'
+                AND weight IS NOT NULL AND weight > 0
             ) hr ON u.id = hr.user_id
             WHERE u.role = 'user'
         ";
@@ -1747,6 +1747,9 @@ function getRankAcronym($rank) {
                                 <button type="button" class="btn btn-success rounded-circle p-0 action-btn shadow-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#exportExcelModal" title="Export to Excel" style="width: 40px; height: 40px;">
                                     <i class="bi bi-file-earmark-excel"></i>
                                 </button>
+                                <button type="button" class="btn btn-danger rounded-circle p-0 action-btn shadow-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#exportPdfModal" title="Extract Forms to PDF ZIP" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </button>
                                 <a href="audit_logs.php" class="btn btn-dark rounded-circle p-0 action-btn shadow-sm flex-shrink-0" title="Audit Logs" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
                                     <i class="bi bi-shield-lock"></i>
                                 </a>
@@ -2249,7 +2252,7 @@ function getRankAcronym($rank) {
                                             <select name="unit_filter" class="form-select" required>
                                                 <option value="ALL">ALL UNITS</option>
                                                 <option value="NO_UNIT">No Unit</option>
-                                                <option value="CHQ">CHQ</option>
+                                                <option value="CHQ">CHQ (Includes all branch units)</option>
                                                 <option value="PS1">PS1</option>
                                                 <option value="PS2">PS2</option>
                                                 <option value="PS3">PS3</option>
@@ -2259,16 +2262,31 @@ function getRankAcronym($rank) {
                                                 <option value="CMFC">CMFC</option>
                                                 <option value="TPU">TPU</option>
                                                 <option value="MPU">MPU</option>
-                                                <option value="CARMU">CARMU</option>
+                                                <option value="TEU">TEU</option>
+                                                <option value="ACDEU">ACDEU</option>
                                                 <option value="CIU">CIU</option>
-                                                <option value="AOMU">AOMU</option>
-                                                <option value="CCADU">CCADU</option>
-                                                <option value="ARDDO">ARDDO</option>
-                                                <option value="CPPU">CPPU</option>
-                                                <option value="GSO">GSO</option>
-                                                <option value="DEU">DEU</option>
                                                 <option value="COMU">COMU</option>
+                                                <option value="CIDMU">CIDMU</option>
+                                                <option value="CARMU">CARMU</option>
+                                                <option value="CPPU">CPPU</option>
+                                                <option value="CCADU">CCADU</option>
+                                                <option value="GSO">GSO</option>
+                                                <option value="LSO">LSO</option>
+                                                <option value="HRAO">HRAO</option>
+                                                <option value="CPSMU">CPSMU</option>
+                                                <option value="DCBA">DCBA</option>
                                                 <option value="ODCDO">ODCDO</option>
+                                                <option value="PIO">PIO</option>
+                                                <option value="BFO">BFO</option>
+                                                <option value="CPHAU">CPHAU</option>
+                                                <option value="OCD">OCD</option>
+                                                <option value="OCESPO">OCESPO</option>
+                                                <option value="WCPD">WCPD</option>
+                                                <option value="HRDD">HRDD</option>
+                                                <option value="AOMU">AOMU</option>
+                                                <option value="ARDDO">ARDDO</option>
+                                                <option value="DEU">DEU</option>
+                                                <option value="SCHOOLING NOW">SCHOOLING NOW</option>
                                             </select>
                                             <div class="form-text small opacity-75 mt-1">Leave as "ALL UNITS" to extract everything.</div>
                                         </div>
@@ -2291,6 +2309,70 @@ function getRankAcronym($rank) {
                                         </button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export to PDF Modal -->
+                <div class="modal fade" id="exportPdfModal" tabindex="-1" aria-labelledby="exportPdfModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content rounded-4 border-0 shadow">
+                            <div class="modal-header border-bottom-0 pb-0">
+                                <h5 class="modal-title fw-bold text-uppercase text-danger" id="exportPdfModalLabel">Extract Forms to PDF ZIP</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body p-4">
+                                <p class="text-secondary small mb-4">Select the unit whose personnel BMI forms you want to compile into a PDF ZIP archive.</p>
+                                
+                                <div class="mb-4">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase">Select Unit</label>
+                                    <select id="pdfUnitSelector" class="form-select" required>
+                                        <option value="ALL">ALL VISIBLE (Extracts whatever you currently filtered in the table)</option>
+                                        <option value="CHQ">CHQ (Includes all branch units)</option>
+                                        <option value="PS1">PS1</option>
+                                        <option value="PS2">PS2</option>
+                                        <option value="PS3">PS3</option>
+                                        <option value="PS4">PS4</option>
+                                        <option value="PS5">PS5</option>
+                                        <option value="PS6">PS6</option>
+                                        <option value="CMFC">CMFC</option>
+                                        <option value="TPU">TPU</option>
+                                        <option value="MPU">MPU</option>
+                                        <option value="TEU">TEU</option>
+                                        <option value="ACDEU">ACDEU</option>
+                                        <option value="CIU">CIU</option>
+                                        <option value="COMU">COMU</option>
+                                        <option value="CIDMU">CIDMU</option>
+                                        <option value="CARMU">CARMU</option>
+                                        <option value="CPPU">CPPU</option>
+                                        <option value="CCADU">CCADU</option>
+                                        <option value="GSO">GSO</option>
+                                        <option value="LSO">LSO</option>
+                                        <option value="HRAO">HRAO</option>
+                                        <option value="CPSMU">CPSMU</option>
+                                        <option value="DCBA">DCBA</option>
+                                        <option value="ODCDO">ODCDO</option>
+                                        <option value="PIO">PIO</option>
+                                        <option value="BFO">BFO</option>
+                                        <option value="CPHAU">CPHAU</option>
+                                        <option value="OCD">OCD</option>
+                                        <option value="OCESPO">OCESPO</option>
+                                        <option value="WCPD">WCPD</option>
+                                        <option value="HRDD">HRDD</option>
+                                        <option value="AOMU">AOMU</option>
+                                        <option value="ARDDO">ARDDO</option>
+                                        <option value="DEU">DEU</option>
+                                        <option value="SCHOOLING NOW">SCHOOLING NOW</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="text-end mt-4">
+                                    <button type="button" class="btn btn-light rounded-pill px-4 me-2" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold" onclick="extractPdfsToZip()">
+                                        <i class="bi bi-file-earmark-zip me-1"></i> EXTRACT PDF ZIP
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3413,6 +3495,183 @@ function getRankAcronym($rank) {
         if (modalBadge) modalBadge.textContent = visibleCount;
         if (navBadge) navBadge.textContent = visibleCount;
     }
+    
+    // PDF Zip Extraction
+    async function extractPdfsToZip() {
+        const selectedUnit = document.getElementById('pdfUnitSelector') ? document.getElementById('pdfUnitSelector').value : 'ALL';
+        
+        // Hide modal if open
+        const pdfModalEl = document.getElementById('exportPdfModal');
+        if (pdfModalEl) {
+            const bootstrapModal = bootstrap.Modal.getInstance(pdfModalEl);
+            if (bootstrapModal) bootstrapModal.hide();
+        }
+
+        const allRows = Array.from(document.querySelectorAll('.table-masterlist tbody tr:not(.no-results)'));
+        const chqBranches = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+
+        let rows = [];
+        if (selectedUnit === 'ALL') {
+            // Use currently visible rows in the table
+            rows = allRows.filter(r => r.style.display !== 'none');
+        } else {
+            // Filter all rows by exact unit criteria regardless of table visibility
+            rows = allRows.filter(r => {
+                const uStr = (r.getAttribute('data-unit') || '').split(',').map(s=>s.trim());
+                if (selectedUnit === 'CHQ') {
+                    return uStr.some(u => chqBranches.includes(u));
+                }
+                return uStr.includes(selectedUnit);
+            });
+        }
+
+        if (rows.length === 0) {
+            alert(`No personnel found for the selected criteria.`);
+            return;
+        }
+        
+        if (!confirm(`This will generate PDF forms for ${rows.length} personnel and save them in a ZIP archive. This might take a while. Do you want to proceed?`)) {
+            return;
+        }
+
+        // Show loading overlay
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0'; overlay.style.left = '0';
+        overlay.style.width = '100vw'; overlay.style.height = '100vh';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.color = 'white';
+        
+        overlay.innerHTML = `
+            <div class="spinner-border text-light mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+            <h3 class="fw-bold mb-3 text-uppercase" style="letter-spacing: 1px;">Generating PDFs</h3>
+            <div class="progress w-50 mb-3 rounded-pill bg-dark" style="height: 25px; border: 1px solid rgba(255,255,255,0.2);">
+                <div id="pdf-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success fw-bold fs-6" style="width: 0%">0%</div>
+            </div>
+            <p id="pdf-progress-text" class="fs-5 fw-medium">0 / ${rows.length} completed</p>
+            <p class="small text-white-50 mt-2"><i class="bi bi-info-circle me-1"></i>Please do not close this window.</p>
+        `;
+        document.body.appendChild(overlay);
+
+        const zip = new JSZip();
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '1400px';
+        iframe.style.height = '2000px';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.zIndex = '-1';
+        iframe.style.opacity = '0.01';
+        document.body.appendChild(iframe);
+
+        let count = 0;
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            
+            // Wait to prevent browser freeze
+            await new Promise(r => setTimeout(r, 50));
+            
+            const checkbox = row.querySelector('.user-checkbox');
+            const userId = checkbox ? checkbox.value : null;
+            if (!userId) continue;
+
+            let rankStr = row.getAttribute('data-rank') || 'Rank';
+            if (rankStr.includes('(')) {
+                rankStr = rankStr.split('(')[1].replace(')', '').trim();
+            }
+            
+            let unitStr = row.getAttribute('data-unit') || 'Unit';
+            unitStr = unitStr.split(',')[0].trim();
+
+            const nameStr = row.getAttribute('data-name') || 'Name';
+            let lastFirst = nameStr.replace(/[^a-zA-Z0-9\, ]/g, '');
+            if (lastFirst.includes(',')) {
+                const parts = lastFirst.split(',');
+                const lastName = parts[0].trim();
+                const firstName = parts[1].trim().split(' ')[0];
+                lastFirst = `${lastName}_${firstName}`;
+            } else {
+                lastFirst = lastFirst.replace(/ /g, '_');
+            }
+
+            const fileName = `${unitStr}_${rankStr}_${lastFirst}.pdf`.replace(/[\/\\]/g, '-');
+
+            await new Promise(resolve => {
+                iframe.onload = resolve;
+                iframe.src = `editor.php?edit_user_id=${userId}&print_mode=1`;
+            });
+
+            // Wait for internal images to render
+            await new Promise(resolve => setTimeout(resolve, 1200));
+
+            try {
+                const iframeDoc = iframe.contentWindow.document;
+                const element = iframeDoc.querySelector('.bmi-container');
+                
+                if (!element) {
+                    console.error('No .bmi-container found for ' + fileName);
+                    continue;
+                }
+
+                // Force remove .no-print elements from the DOM (bypasses all CSS specificity issues)
+                const noPrintEls = iframeDoc.querySelectorAll('.no-print');
+                noPrintEls.forEach(el => el.remove());
+
+                // Let layout settle after DOM changes
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                const opt = {
+                    margin:       [0.15, 0.15, 0.15, 0.15],
+                    filename:     fileName,
+                    image:        { type: 'jpeg', quality: 0.95 },
+                    html2canvas:  { 
+                        scale: 2, 
+                        useCORS: true, 
+                        allowTaint: true,
+                        windowWidth: 1300,
+                        scrollX: 0,
+                        scrollY: 0,
+                        logging: false 
+                    },
+                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' },
+                    pagebreak:    { mode: ['avoid-all'] }
+                };
+
+                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+                zip.file(fileName, pdfBlob);
+
+                count++;
+                const percent = Math.round((count / rows.length) * 100);
+                document.getElementById('pdf-progress-bar').style.width = percent + '%';
+                document.getElementById('pdf-progress-bar').innerText = percent + '%';
+                document.getElementById('pdf-progress-text').innerText = `${count} / ${rows.length} completed (${fileName})`;
+            } catch (e) {
+                console.error("Failed PDF: " + fileName, e);
+            }
+        }
+
+        document.getElementById('pdf-progress-text').innerHTML = "<i class='bi bi-file-zip me-2'></i>Zipping files, please wait...";
+        document.getElementById('pdf-progress-bar').classList.remove('bg-success');
+        document.getElementById('pdf-progress-bar').classList.add('bg-primary');
+        
+        // Use timeout to let the UI update before zipping freezes the thread
+        setTimeout(() => {
+            zip.generateAsync({type:"blob"}).then(function(content) {
+                saveAs(content, `ACPO_BMI_Forms_${new Date().toISOString().slice(0,10)}.zip`);
+                document.body.removeChild(overlay);
+                document.body.removeChild(iframe);
+            });
+        }, 500);
+    }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </body>
 </html>
