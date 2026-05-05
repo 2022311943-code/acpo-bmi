@@ -658,6 +658,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                         <option value="Police Staff Sergeant (PSSg)">
                                         <option value="Police Corporal (PCpl)">
                                         <option value="Patrolman / Patrolwoman (Pat)">
+                                        <!-- Non-Uniformed -->
+                                        <option value="Non-Uniformed Personnel (NUP)">
                                     </datalist>
                                 </div>
                                 <div class="mb-3">

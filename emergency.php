@@ -332,6 +332,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mass_register'])) {
                                     <option value="Police Staff Sergeant (PSSg)">Police Staff Sergeant (PSSg)</option>
                                     <option value="Police Corporal (PCpl)">Police Corporal (PCpl)</option>
                                     <option value="Patrolman / Patrolwoman (Pat)" selected>Patrolman / Patrolwoman (Pat)</option>
+                                    <!-- Non-Uniformed -->
+                                    <option value="Non-Uniformed Personnel (NUP)">Non-Uniformed Personnel (NUP)</option>
                                 </select>
                             </div>
                             <div class="col-md-6">

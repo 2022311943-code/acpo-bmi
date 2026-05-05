@@ -72,7 +72,8 @@ function getRankAcronym($rank) {
         'Police Master Sergeant (PMSg)' => 'PMSg',
         'Police Staff Sergeant (PSSg)' => 'PSSg',
         'Police Corporal (PCpl)' => 'PCpl',
-        'Patrolman / Patrolwoman (Pat)' => 'Pat'
+        'Patrolman / Patrolwoman (Pat)' => 'Pat',
+        'Non-Uniformed Personnel (NUP)' => 'NUP'
     ];
     return $ranks[$rank] ?? $rank;
 }
@@ -592,7 +593,8 @@ function getRankAcronym($rank) {
                             'Police Major (PMAJ)', 'Police Captain (PCPT)', 'Police Lieutenant (PLT)', 
                             'Police Executive Master Sergeant (PEMS)', 'Police Chief Master Sergeant (PCMS)', 
                             'Police Senior Master Sergeant (PSMS)', 'Police Master Sergeant (PMSg)', 
-                            'Police Staff Sergeant (PSSg)', 'Police Corporal (PCpl)', 'Patrolman / Patrolwoman (Pat)'
+                            'Police Staff Sergeant (PSSg)', 'Police Corporal (PCpl)', 'Patrolman / Patrolwoman (Pat)',
+                            'Non-Uniformed Personnel (NUP)'
                         ];
                         foreach($rank_list as $rl): 
                     ?>

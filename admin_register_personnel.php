@@ -613,6 +613,8 @@ $next_user_no = (int)$stmt_count->fetchColumn() + 1;
                                             <option value="Police Staff Sergeant (PSSg)">
                                             <option value="Police Corporal (PCpl)">
                                             <option value="Patrolman / Patrolwoman (Pat)">
+                                            <!-- Non-Uniformed -->
+                                            <option value="Non-Uniformed Personnel (NUP)">
                                         </datalist>
                                     </div>
                                     <div class="col-md-4">
@@ -786,7 +788,8 @@ $next_user_no = (int)$stmt_count->fetchColumn() + 1;
             'Police Master Sergeant (PMSg)': 'pmsg',
             'Police Staff Sergeant (PSSg)': 'pssg',
             'Police Corporal (PCpl)': 'pcpl',
-            'Patrolman / Patrolwoman (Pat)': 'pat'
+            'Patrolman / Patrolwoman (Pat)': 'pat',
+            'Non-Uniformed Personnel (NUP)': 'nup'
         };
 
         function generateUsername() {

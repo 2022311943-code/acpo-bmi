@@ -1595,7 +1595,6 @@ $monthly_weights = isset($merged_weights) ? $merged_weights : (isset($health_dat
                                     $val = isset($conf['val']) ? $conf['val'] : hval($health_data, $conf['db'] ?? '');
                                     $is_readonly = isset($conf['readonly']) && $conf['readonly'];
                                     $row_class = "data-row $bg border-bottom border-black fw-bold small-text";
-                                    if (in_array($label, ['Waist', 'Hip', 'Wrist'])) $row_class .= ' no-print';
                                 ?>
                                 <div class="<?php echo $row_class; ?>">
                                     <div class="label-col"><?php echo $label; ?>:</div>

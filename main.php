@@ -189,7 +189,8 @@ if ($is_admin) {
         'Police Master Sergeant (PMSg)',
         'Police Staff Sergeant (PSSg)',
         'Police Corporal (PCpl)',
-        'Patrolman / Patrolwoman (Pat)'
+        'Patrolman / Patrolwoman (Pat)',
+        'Non-Uniformed Personnel (NUP)'
     ];
 
     // Optimize query: Avoid O(N) correlated subqueries, avoid fetching massive base64 images (img_right, img_front, img_left)
@@ -1747,9 +1748,10 @@ function getRankAcronym($rank) {
                                 <button type="button" class="btn btn-success rounded-circle p-0 action-btn shadow-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#exportExcelModal" title="Export to Excel" style="width: 40px; height: 40px;">
                                     <i class="bi bi-file-earmark-excel"></i>
                                 </button>
-                                <button type="button" class="btn btn-danger rounded-circle p-0 action-btn shadow-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#exportPdfModal" title="Extract Forms to PDF ZIP" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-file-earmark-pdf"></i>
+                                <button type="button" class="btn btn-info rounded-circle p-0 action-btn shadow-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#extractBmiFormsModal" title="Extract BMI Forms to ZIP" style="width: 40px; height: 40px;">
+                                    <i class="bi bi-file-earmark-zip"></i>
                                 </button>
+
                                 <a href="audit_logs.php" class="btn btn-dark rounded-circle p-0 action-btn shadow-sm flex-shrink-0" title="Audit Logs" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
                                     <i class="bi bi-shield-lock"></i>
                                 </a>
@@ -1858,8 +1860,7 @@ function getRankAcronym($rank) {
                                         <thead>
                                             <tr class="bg-light">
                                                 <th class="py-3 px-3" style="width: 40px;"><div class="skeleton" style="width: 20px; height: 20px;"></div></th>
-                                                <th class="py-3 px-3" style="width: 50px;"><div class="skeleton-circle skeleton"></div></th>
-                                                <?php for($i=0; $i<8; $i++): ?>
+                                                <?php for($i=0; $i<5; $i++): ?>
                                                 <th class="py-3 px-3"><div class="skeleton skeleton-text" style="width: <?php echo rand(60, 100); ?>px;"></div></th>
                                                 <?php endfor; ?>
                                                 <th class="py-3 px-3 text-center" style="width: 100px;"><div class="skeleton skeleton-text mx-auto" style="width: 50px;"></div></th>
@@ -1869,8 +1870,7 @@ function getRankAcronym($rank) {
                                             <?php for($i=0; $i<10; $i++): ?>
                                             <tr>
                                                 <td class="px-3"><div class="skeleton mx-auto" style="width: 20px; height: 20px;"></div></td>
-                                                <td class="px-3"><div class="skeleton-circle skeleton mx-auto"></div></td>
-                                                <?php for($j=0; $j<8; $j++): ?>
+                                                <?php for($j=0; $j<5; $j++): ?>
                                                 <td class="px-3"><div class="skeleton skeleton-text"></div></td>
                                                 <?php endfor; ?>
                                                 <td class="px-3 text-center"><div class="skeleton skeleton-text mx-auto" style="width: 60px;"></div></td>
@@ -1892,16 +1892,12 @@ function getRankAcronym($rank) {
                                             <th class="py-3 border-0 text-center" style="width: 40px;">
                                                 <input type="checkbox" class="form-check-input" id="selectAllUsers">
                                             </th>
-                                            <th class="py-3 border-0 text-center" style="width: 50px;">Photo</th>
                                             <th class="py-3 border-0">Rank</th>
                                             <th class="py-3 border-0">Name</th>
                                             <th class="py-3 border-0 text-center">Age</th>
-                                            <th class="py-3 border-0">Username</th>
                                             <th class="py-3 border-0 text-center">Sex</th>
                                             <th class="py-3 border-0">Office</th>
                                             <th class="py-3 border-0 text-center">BMI Status</th>
-                                            <th class="py-3 border-0">Birthday</th>
-                                            <th class="py-3 border-0">Registered</th>
                                             <th class="py-3 border-0 text-center">Action</th>
                                         </tr>
                                     </thead>
@@ -1933,15 +1929,6 @@ function getRankAcronym($rank) {
                                                     <td class="py-2 text-center">
                                                         <input type="checkbox" class="form-check-input user-checkbox" name="user_ids[]" value="<?php echo $user['id']; ?>" onchange="updateBulkUI()">
                                                     </td>
-                                                    <td class="py-2 text-center">
-                                                        <div class="rounded-circle overflow-hidden d-inline-block shadow-sm border" style="width: 38px; height: 38px;">
-                                                            <?php if (!empty($user['profile_pic'])): ?>
-                                                                <img src="<?php echo $user['profile_pic']; ?>" alt="pfp" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
-                                                            <?php else: ?>
-                                                                <img src="images/placeholder.png" alt="pfp" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 200 200\'><circle cx=\'100\' cy=\'100\' r=\'100\' fill=\'%23f8f9fa\'/><path d=\'M100 50 A25 25 0 1 0 100 100 A25 25 0 1 0 100 50 Z M100 110 C70 110 40 130 40 160 A60 60 0 0 0 160 160 C160 130 130 110 100 110 Z\' fill=\'%23adb5bd\'/></svg>'">
-                                                            <?php endif; ?>
-                                                        </div>
-                                                    </td>
                                                     <td class="py-3 fw-bold"><?php echo htmlspecialchars(getRankAcronym($user['rank'])); ?></td>
                                                     <td class="py-3">
                                                         <?php echo htmlspecialchars($user['name']); ?>
@@ -1952,7 +1939,6 @@ function getRankAcronym($rank) {
                                                         <?php endif; ?>
                                                     </td>
                                                     <td class="py-3 text-secondary text-center"><?php echo isset($user['age']) ? htmlspecialchars($user['age']) : 'N/A'; ?></td>
-                                                    <td class="py-3 text-secondary small"><?php echo htmlspecialchars($user['username']); ?></td>
                                                     <td class="py-3 text-capitalize text-center"><?php echo strtoupper(substr($user['gender'] ?? '', 0, 1)); ?></td>
                                                     <td class="py-3 text-secondary small"><?php echo htmlspecialchars($user['unit'] ?? 'N/A'); ?></td>
                                                     <td class="py-3 text-center">
@@ -1978,8 +1964,6 @@ function getRankAcronym($rank) {
                                                             <span class="badge bg-secondary-subtle text-secondary rounded-pill border border-secondary-subtle" style="font-size: 10px;">N/A</span>
                                                         <?php endif; ?>
                                                     </td>
-                                                    <td class="py-3 text-nowrap"><?php echo date('M j, Y', strtotime($user['birthday'])); ?></td>
-                                                    <td class="py-3 text-secondary small text-nowrap"><?php echo date('M j, Y', strtotime($user['created_at'])); ?></td>
                                                     <td class="py-3 text-center">
                                                         <div class="d-flex justify-content-center gap-1">
                                                             <?php 
@@ -2314,21 +2298,22 @@ function getRankAcronym($rank) {
                     </div>
                 </div>
 
-                <!-- Export to PDF Modal -->
-                <div class="modal fade" id="exportPdfModal" tabindex="-1" aria-labelledby="exportPdfModalLabel" aria-hidden="true">
+                <!-- Extract BMI Forms to ZIP Modal -->
+                <div class="modal fade" id="extractBmiFormsModal" tabindex="-1" aria-labelledby="extractBmiFormsModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content rounded-4 border-0 shadow">
                             <div class="modal-header border-bottom-0 pb-0">
-                                <h5 class="modal-title fw-bold text-uppercase text-danger" id="exportPdfModalLabel">Extract Forms to PDF ZIP</h5>
+                                <h5 class="modal-title fw-bold text-uppercase" id="extractBmiFormsModalLabel" style="color: #0dcaf0;"><i class="bi bi-file-earmark-zip me-2"></i>Extract BMI Forms</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body p-4">
-                                <p class="text-secondary small mb-4">Select the unit whose personnel BMI forms you want to compile into a PDF ZIP archive.</p>
+                                <p class="text-secondary small mb-4">Select a unit to extract all personnel BMI forms as images bundled into a ZIP file. Each form will be captured exactly as it appears in the editor (non-edit view).</p>
                                 
-                                <div class="mb-4">
-                                    <label class="form-label small fw-bold text-secondary text-uppercase">Select Unit</label>
-                                    <select id="pdfUnitSelector" class="form-select" required>
-                                        <option value="ALL">ALL VISIBLE (Extracts whatever you currently filtered in the table)</option>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase">Unit / Office</label>
+                                    <select id="extractUnit" class="form-select" required>
+                                        <option value="">-- Select Unit --</option>
+                                        <option value="ALL">ALL UNITS</option>
                                         <option value="CHQ">CHQ (Includes all branch units)</option>
                                         <option value="PS1">PS1</option>
                                         <option value="PS2">PS2</option>
@@ -2360,23 +2345,38 @@ function getRankAcronym($rank) {
                                         <option value="OCESPO">OCESPO</option>
                                         <option value="WCPD">WCPD</option>
                                         <option value="HRDD">HRDD</option>
-                                        <option value="AOMU">AOMU</option>
-                                        <option value="ARDDO">ARDDO</option>
-                                        <option value="DEU">DEU</option>
-                                        <option value="SCHOOLING NOW">SCHOOLING NOW</option>
                                     </select>
                                 </div>
                                 
-                                <div class="text-end mt-4">
-                                    <button type="button" class="btn btn-light rounded-pill px-4 me-2" data-bs-dismiss="modal">Cancel</button>
-                                    <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold" onclick="extractPdfsToZip()">
-                                        <i class="bi bi-file-earmark-zip me-1"></i> EXTRACT PDF ZIP
-                                    </button>
+                                <!-- Progress Section (hidden initially) -->
+                                <div id="extractProgress" style="display: none;">
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small class="fw-bold text-uppercase text-secondary" id="extractStatusText">Preparing...</small>
+                                            <small class="fw-bold" id="extractProgressPercent">0%</small>
+                                        </div>
+                                        <div class="progress rounded-pill" style="height: 12px;">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated" id="extractProgressBar" role="progressbar" style="width: 0%; background: linear-gradient(135deg, #0dcaf0 0%, #1700ad 100%);"></div>
+                                        </div>
+                                    </div>
+                                    <div class="text-center mt-2">
+                                        <small class="text-secondary" id="extractDetailText">Loading personnel data...</small>
+                                    </div>
+                                    <!-- Log Area -->
+                                    <div id="extractLogArea" class="mt-3 p-2 rounded-3 bg-dark text-light" style="max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.72rem; display: none;"></div>
                                 </div>
+                            </div>
+                            <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal" id="extractCancelBtn">Cancel</button>
+                                <button type="button" class="btn btn-info rounded-pill px-4 fw-bold text-white" id="extractStartBtn" onclick="startBmiExtraction()">
+                                    <i class="bi bi-download me-1"></i> START EXTRACTION
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
+
+
             <?php else: ?>
 
             <!-- Welcome Section -->
@@ -2663,6 +2663,11 @@ function getRankAcronym($rank) {
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <!-- Libraries for BMI Form Extraction (html2canvas, jsPDF, JSZip, FileSaver) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <script>
         function filterByBmiCategory(unitName, bmiCategory) {
@@ -3495,183 +3500,310 @@ function getRankAcronym($rank) {
         if (modalBadge) modalBadge.textContent = visibleCount;
         if (navBadge) navBadge.textContent = visibleCount;
     }
-    
-    // PDF Zip Extraction
-    async function extractPdfsToZip() {
-        const selectedUnit = document.getElementById('pdfUnitSelector') ? document.getElementById('pdfUnitSelector').value : 'ALL';
-        
-        // Hide modal if open
-        const pdfModalEl = document.getElementById('exportPdfModal');
-        if (pdfModalEl) {
-            const bootstrapModal = bootstrap.Modal.getInstance(pdfModalEl);
-            if (bootstrapModal) bootstrapModal.hide();
+
+    // ========== BMI FORM EXTRACTION TO ZIP ==========
+    let extractionAborted = false;
+
+    function extractLog(msg) {
+        const logArea = document.getElementById('extractLogArea');
+        if (logArea) {
+            logArea.style.display = 'block';
+            const line = document.createElement('div');
+            line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            logArea.appendChild(line);
+            logArea.scrollTop = logArea.scrollHeight;
         }
-
-        const allRows = Array.from(document.querySelectorAll('.table-masterlist tbody tr:not(.no-results)'));
-        const chqBranches = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
-
-        let rows = [];
-        if (selectedUnit === 'ALL') {
-            // Use currently visible rows in the table
-            rows = allRows.filter(r => r.style.display !== 'none');
-        } else {
-            // Filter all rows by exact unit criteria regardless of table visibility
-            rows = allRows.filter(r => {
-                const uStr = (r.getAttribute('data-unit') || '').split(',').map(s=>s.trim());
-                if (selectedUnit === 'CHQ') {
-                    return uStr.some(u => chqBranches.includes(u));
-                }
-                return uStr.includes(selectedUnit);
-            });
-        }
-
-        if (rows.length === 0) {
-            alert(`No personnel found for the selected criteria.`);
-            return;
-        }
-        
-        if (!confirm(`This will generate PDF forms for ${rows.length} personnel and save them in a ZIP archive. This might take a while. Do you want to proceed?`)) {
-            return;
-        }
-
-        // Show loading overlay
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0'; overlay.style.left = '0';
-        overlay.style.width = '100vw'; overlay.style.height = '100vh';
-        overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
-        overlay.style.zIndex = '9999';
-        overlay.style.display = 'flex';
-        overlay.style.flexDirection = 'column';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.color = 'white';
-        
-        overlay.innerHTML = `
-            <div class="spinner-border text-light mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
-            <h3 class="fw-bold mb-3 text-uppercase" style="letter-spacing: 1px;">Generating PDFs</h3>
-            <div class="progress w-50 mb-3 rounded-pill bg-dark" style="height: 25px; border: 1px solid rgba(255,255,255,0.2);">
-                <div id="pdf-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success fw-bold fs-6" style="width: 0%">0%</div>
-            </div>
-            <p id="pdf-progress-text" class="fs-5 fw-medium">0 / ${rows.length} completed</p>
-            <p class="small text-white-50 mt-2"><i class="bi bi-info-circle me-1"></i>Please do not close this window.</p>
-        `;
-        document.body.appendChild(overlay);
-
-        const zip = new JSZip();
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '1400px';
-        iframe.style.height = '2000px';
-        iframe.style.position = 'fixed';
-        iframe.style.top = '0';
-        iframe.style.left = '0';
-        iframe.style.zIndex = '-1';
-        iframe.style.opacity = '0.01';
-        document.body.appendChild(iframe);
-
-        let count = 0;
-
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            
-            // Wait to prevent browser freeze
-            await new Promise(r => setTimeout(r, 50));
-            
-            const checkbox = row.querySelector('.user-checkbox');
-            const userId = checkbox ? checkbox.value : null;
-            if (!userId) continue;
-
-            let rankStr = row.getAttribute('data-rank') || 'Rank';
-            if (rankStr.includes('(')) {
-                rankStr = rankStr.split('(')[1].replace(')', '').trim();
-            }
-            
-            let unitStr = row.getAttribute('data-unit') || 'Unit';
-            unitStr = unitStr.split(',')[0].trim();
-
-            const nameStr = row.getAttribute('data-name') || 'Name';
-            let lastFirst = nameStr.replace(/[^a-zA-Z0-9\, ]/g, '');
-            if (lastFirst.includes(',')) {
-                const parts = lastFirst.split(',');
-                const lastName = parts[0].trim();
-                const firstName = parts[1].trim().split(' ')[0];
-                lastFirst = `${lastName}_${firstName}`;
-            } else {
-                lastFirst = lastFirst.replace(/ /g, '_');
-            }
-
-            const fileName = `${unitStr}_${rankStr}_${lastFirst}.pdf`.replace(/[\/\\]/g, '-');
-
-            await new Promise(resolve => {
-                iframe.onload = resolve;
-                iframe.src = `editor.php?edit_user_id=${userId}&print_mode=1`;
-            });
-
-            // Wait for internal images to render
-            await new Promise(resolve => setTimeout(resolve, 1200));
-
-            try {
-                const iframeDoc = iframe.contentWindow.document;
-                const element = iframeDoc.querySelector('.bmi-container');
-                
-                if (!element) {
-                    console.error('No .bmi-container found for ' + fileName);
-                    continue;
-                }
-
-                // Force remove .no-print elements from the DOM (bypasses all CSS specificity issues)
-                const noPrintEls = iframeDoc.querySelectorAll('.no-print');
-                noPrintEls.forEach(el => el.remove());
-
-                // Let layout settle after DOM changes
-                await new Promise(resolve => setTimeout(resolve, 200));
-
-                const opt = {
-                    margin:       [0.15, 0.15, 0.15, 0.15],
-                    filename:     fileName,
-                    image:        { type: 'jpeg', quality: 0.95 },
-                    html2canvas:  { 
-                        scale: 2, 
-                        useCORS: true, 
-                        allowTaint: true,
-                        windowWidth: 1300,
-                        scrollX: 0,
-                        scrollY: 0,
-                        logging: false 
-                    },
-                    jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' },
-                    pagebreak:    { mode: ['avoid-all'] }
-                };
-
-                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-                zip.file(fileName, pdfBlob);
-
-                count++;
-                const percent = Math.round((count / rows.length) * 100);
-                document.getElementById('pdf-progress-bar').style.width = percent + '%';
-                document.getElementById('pdf-progress-bar').innerText = percent + '%';
-                document.getElementById('pdf-progress-text').innerText = `${count} / ${rows.length} completed (${fileName})`;
-            } catch (e) {
-                console.error("Failed PDF: " + fileName, e);
-            }
-        }
-
-        document.getElementById('pdf-progress-text').innerHTML = "<i class='bi bi-file-zip me-2'></i>Zipping files, please wait...";
-        document.getElementById('pdf-progress-bar').classList.remove('bg-success');
-        document.getElementById('pdf-progress-bar').classList.add('bg-primary');
-        
-        // Use timeout to let the UI update before zipping freezes the thread
-        setTimeout(() => {
-            zip.generateAsync({type:"blob"}).then(function(content) {
-                saveAs(content, `ACPO_BMI_Forms_${new Date().toISOString().slice(0,10)}.zip`);
-                document.body.removeChild(overlay);
-                document.body.removeChild(iframe);
-            });
-        }, 500);
     }
+
+    function updateExtractProgress(current, total, name) {
+        const pct = Math.round((current / total) * 100);
+        document.getElementById('extractProgressBar').style.width = pct + '%';
+        document.getElementById('extractProgressPercent').textContent = pct + '%';
+        document.getElementById('extractDetailText').textContent = 'Processing ' + current + ' of ' + total + ': ' + name;
+    }
+
+    async function startBmiExtraction() {
+        const unitSelect = document.getElementById('extractUnit');
+        const unit = unitSelect.value;
+        if (!unit) {
+            alert('Please select a unit first.');
+            return;
+        }
+
+        extractionAborted = false;
+
+        // Verify required libraries loaded
+        if (typeof html2canvas === 'undefined' || typeof JSZip === 'undefined' || typeof saveAs === 'undefined' || !window.jspdf) {
+            alert('Required libraries failed to load. Please refresh the page and try again.');
+            return;
+        }
+
+        // Show progress, disable start button
+        document.getElementById('extractProgress').style.display = 'block';
+        document.getElementById('extractStartBtn').disabled = true;
+        document.getElementById('extractStartBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> EXTRACTING...';
+        unitSelect.disabled = true;
+        document.getElementById('extractLogArea').innerHTML = '';
+        document.getElementById('extractStatusText').textContent = 'Fetching personnel list...';
+        document.getElementById('extractCancelBtn').textContent = 'Abort';
+        document.getElementById('extractCancelBtn').onclick = function() {
+            extractionAborted = true;
+            resetExtractUI();
+        };
+
+        extractLog('Starting extraction for unit: ' + unit);
+
+        try {
+            // 1. Fetch personnel for unit
+            const response = await fetch('api_unit_personnel.php?unit=' + encodeURIComponent(unit));
+            const data = await response.json();
+
+            if (data.error) {
+                alert('Error: ' + data.error);
+                resetExtractUI();
+                return;
+            }
+
+            const personnel = data.personnel;
+            if (!personnel || personnel.length === 0) {
+                alert('No personnel found for this unit.');
+                resetExtractUI();
+                return;
+            }
+
+            extractLog('Found ' + personnel.length + ' personnel. Starting form capture...');
+            document.getElementById('extractStatusText').textContent = 'Capturing BMI forms...';
+
+            const zip = new JSZip();
+            const pdfFolder = zip.folder(unit + '_BMI_Forms');
+            let successCount = 0;
+            let failCount = 0;
+
+            // 2. Process each person sequentially
+            for (let i = 0; i < personnel.length; i++) {
+                if (extractionAborted) {
+                    extractLog('Extraction aborted by user.');
+                    break;
+                }
+
+                const person = personnel[i];
+                const safeName = (person.name || 'Unknown').replace(/[^a-zA-Z0-9\s,.-]/g, '').trim();
+                updateExtractProgress(i + 1, personnel.length, safeName);
+                extractLog('Capturing: ' + safeName + ' (ID: ' + person.id + ')');
+
+                try {
+                    const pdfBlob = await captureEditorForm(person.id, safeName);
+                    if (pdfBlob) {
+                        const fileName = (i + 1).toString().padStart(3, '0') + '_' + safeName.replace(/\s+/g, '_') + '.pdf';
+                        pdfFolder.file(fileName, pdfBlob);
+                        successCount++;
+                        extractLog('✓ Captured: ' + safeName);
+                    } else {
+                        failCount++;
+                        extractLog('✗ Failed (no record): ' + safeName);
+                    }
+                } catch (err) {
+                    failCount++;
+                    extractLog('✗ Error for ' + safeName + ': ' + err.message);
+                }
+            }
+
+            if (extractionAborted) {
+                resetExtractUI();
+                return;
+            }
+
+            // 3. Generate ZIP
+            document.getElementById('extractStatusText').textContent = 'Generating ZIP file...';
+            document.getElementById('extractDetailText').textContent = successCount + ' forms captured, ' + failCount + ' failed';
+            extractLog('Generating ZIP with ' + successCount + ' PDFs...');
+
+            const zipBlob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            }, function(metadata) {
+                const zipPct = Math.round(metadata.percent);
+                document.getElementById('extractProgressBar').style.width = zipPct + '%';
+                document.getElementById('extractProgressPercent').textContent = 'ZIP: ' + zipPct + '%';
+            });
+
+            // 4. Download
+            const now = new Date();
+            const dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            const zipFilename = unit + '_BMI_Forms_' + dateStr + '.zip';
+            saveAs(zipBlob, zipFilename);
+
+            extractLog('✓ ZIP downloaded: ' + zipFilename);
+            document.getElementById('extractStatusText').textContent = 'Extraction Complete!';
+            document.getElementById('extractDetailText').textContent = successCount + ' forms saved to ' + zipFilename;
+            document.getElementById('extractProgressBar').style.width = '100%';
+            document.getElementById('extractProgressBar').classList.remove('progress-bar-animated');
+            document.getElementById('extractProgressBar').style.background = '#198754';
+
+            // Reset button state
+            document.getElementById('extractStartBtn').disabled = false;
+            document.getElementById('extractStartBtn').innerHTML = '<i class="bi bi-check-circle me-1"></i> DONE - EXTRACT AGAIN?';
+            document.getElementById('extractUnit').disabled = false;
+            document.getElementById('extractCancelBtn').textContent = 'Close';
+            document.getElementById('extractCancelBtn').onclick = function() {
+                bootstrap.Modal.getInstance(document.getElementById('extractBmiFormsModal')).hide();
+            };
+
+        } catch (err) {
+            extractLog('✗ Fatal error: ' + err.message);
+            alert('Extraction failed: ' + err.message);
+            resetExtractUI();
+        }
+    }
+
+    function captureEditorForm(userId, personName) {
+        return new Promise((resolve, reject) => {
+            // Create a hidden iframe to load the editor page
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed; left:-9999px; top:0; width:1400px; height:2000px; border:none; opacity:0;';
+            iframe.src = 'editor.php?edit_user_id=' + userId;
+            document.body.appendChild(iframe);
+
+            // Set a timeout in case the iframe fails to load
+            const timeout = setTimeout(() => {
+                document.body.removeChild(iframe);
+                reject(new Error('Timeout loading form'));
+            }, 30000); // 30 second timeout
+
+            iframe.onload = function() {
+                clearTimeout(timeout);
+
+                // Wait for rendering to settle (images, fonts)
+                setTimeout(async () => {
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        const bmiContainer = iframeDoc.querySelector('.bmi-container');
+
+                        if (!bmiContainer) {
+                            document.body.removeChild(iframe);
+                            resolve(null); // No BMI form found (no record)
+                            return;
+                        }
+
+                        // Inject print-mode styles to hide .no-print elements
+                        // This matches the @media print behavior so the captured form
+                        // looks identical to the actual printed/PDF version
+                        const printStyle = iframeDoc.createElement('style');
+                        printStyle.textContent = `
+                            /* Replicate editor.php @media print styles exactly */
+                            .acpo-nav, .no-print, .btn-primary, .btn-dark, .nav-tabs, .nav-pills {
+                                display: none !important;
+                            }
+                            body {
+                                background-color: white !important;
+                                color: black !important;
+                            }
+                            .bmi-container {
+                                background-color: white !important;
+                                color: black !important;
+                                box-shadow: none !important;
+                                border: 2px solid #000 !important;
+                                max-width: none !important;
+                                width: 100% !important;
+                                margin: 0 !important;
+                                font-size: 1rem !important;
+                            }
+                            .small-text { font-size: 0.95rem !important; }
+                            .bg-lavender { background-color: #e2e4ff !important; color: #1700ad !important; }
+                            .bg-purple { background-color: #7b85ff !important; color: #fff !important; }
+                            .bg-white { background-color: white !important; color: black !important; }
+                            .border-black { border-color: #000 !important; }
+                            .left-col, .right-col, .pic-box { border-color: #000 !important; }
+                            .pic-box { min-height: 0 !important; padding: 0 !important; }
+                            .pic-box img { width: 100% !important; height: auto !important; display: block !important; position: relative !important; }
+                            .view-label { padding: 2px 0 !important; font-size: 0.75rem !important; }
+                            [style*="color: #1700ad"] { color: #1700ad !important; }
+                            main { padding: 0 !important; }
+                        `;
+                        iframeDoc.head.appendChild(printStyle);
+
+                        // Allow the DOM to reflow after hiding elements
+                        await new Promise(r => setTimeout(r, 300));
+
+                        // Use html2canvas to capture the bmi-container
+                        const canvas = await html2canvas(bmiContainer, {
+                            scale: 2, // Higher quality
+                            useCORS: true,
+                            allowTaint: true,
+                            backgroundColor: '#ffffff',
+                            logging: false,
+                            width: bmiContainer.scrollWidth,
+                            height: bmiContainer.scrollHeight,
+                            windowWidth: 1400
+                        });
+
+                        // Convert canvas to PDF — A4 landscape to match editor.php print mode
+                        const { jsPDF } = window.jspdf;
+                        const pdf = new jsPDF({
+                            orientation: 'landscape',
+                            unit: 'mm',
+                            format: 'a4'
+                        });
+
+                        const pageWidth = pdf.internal.pageSize.getWidth();   // 297mm
+                        const pageHeight = pdf.internal.pageSize.getHeight(); // 210mm
+                        const marginSide = 5; // mm
+                        const marginTop = 18; // mm — push form down to match print positioning
+                        const usableWidth = pageWidth - (marginSide * 2);
+
+                        // Scale to full page width, calculate height from aspect ratio
+                        const canvasRatio = canvas.width / canvas.height;
+                        const imgWidth = usableWidth;
+                        const imgHeight = usableWidth / canvasRatio;
+
+                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                        pdf.addImage(imgData, 'JPEG', marginSide, marginTop, imgWidth, imgHeight);
+
+                        const pdfBlob = pdf.output('blob');
+                        document.body.removeChild(iframe);
+                        resolve(pdfBlob);
+                    } catch (err) {
+                        document.body.removeChild(iframe);
+                        reject(err);
+                    }
+                }, 1500); // Wait 1.5s for images/fonts to render
+            };
+
+            iframe.onerror = function() {
+                clearTimeout(timeout);
+                document.body.removeChild(iframe);
+                reject(new Error('Failed to load iframe'));
+            };
+        });
+    }
+
+    function resetExtractUI() {
+        document.getElementById('extractStartBtn').disabled = false;
+        document.getElementById('extractStartBtn').innerHTML = '<i class="bi bi-download me-1"></i> START EXTRACTION';
+        document.getElementById('extractUnit').disabled = false;
+        document.getElementById('extractProgress').style.display = 'none';
+        document.getElementById('extractProgressBar').style.width = '0%';
+        document.getElementById('extractProgressBar').classList.add('progress-bar-animated');
+        document.getElementById('extractProgressBar').style.background = 'linear-gradient(135deg, #0dcaf0 0%, #1700ad 100%)';
+        document.getElementById('extractCancelBtn').textContent = 'Cancel';
+        document.getElementById('extractCancelBtn').onclick = function() {
+            bootstrap.Modal.getInstance(document.getElementById('extractBmiFormsModal')).hide();
+        };
+    }
+
+    // Reset modal state when closed
+    document.addEventListener('DOMContentLoaded', function() {
+        const extractModal = document.getElementById('extractBmiFormsModal');
+        if (extractModal) {
+            extractModal.addEventListener('hidden.bs.modal', function() {
+                resetExtractUI();
+                document.getElementById('extractLogArea').innerHTML = '';
+                document.getElementById('extractLogArea').style.display = 'none';
+            });
+        }
+    });
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
 </body>
 </html>
