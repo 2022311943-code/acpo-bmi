@@ -278,7 +278,27 @@ $cumulative_weights = [];
 
         // Determine which specific record to load for the form
         $requested_date = $_GET['date'] ?? null;
-        if ($requested_date) {
+        $extract_year = $_GET['extract_year'] ?? null;
+        
+        if ($extract_year) {
+            $stmt = $pdo->prepare("SELECT * FROM health_records WHERE user_id = ? AND YEAR(date_taken) = ? ORDER BY date_taken DESC LIMIT 1");
+            $stmt->execute([$target_user_id, $extract_year]);
+            $health_data = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // If no record exists for that entire year, make a blank one using Dec of that year
+            if (!$health_data) {
+                $target_m_key = $extract_year . '-12';
+                $health_data = [
+                    'date_taken' => $extract_year . '-12-01',
+                    'weight' => $cumulative_weights[$target_m_key] ?? ($latest_rec['weight'] ?? 0),
+                    'height' => $latest_rec['height'] ?? 0,
+                    'waist' => $latest_rec['waist'] ?? 0,
+                    'hip' => $latest_rec['hip'] ?? 0,
+                    'wrist' => $latest_rec['wrist'] ?? 0,
+                    'monthly_weights' => json_encode($cumulative_weights)
+                ];
+            }
+        } else if ($requested_date) {
             $req_m = date('m', strtotime($requested_date));
             $req_y = date('Y', strtotime($requested_date));
             

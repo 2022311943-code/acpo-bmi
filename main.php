@@ -233,7 +233,7 @@ if ($is_admin) {
 
         if (!empty($selected_unit)) {
             if ($selected_unit === 'CHQ') {
-                $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+                $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'CMFC'];
                 $chq_placeholders = implode(',', array_fill(0, count($chq_sub_units), '?'));
                 $where_total .= " AND u.unit IN ($chq_placeholders)";
                 $where_comp .= " AND u.unit IN ($chq_placeholders)";
@@ -264,7 +264,7 @@ if ($is_admin) {
         $valid_sorts = ['unit_seq', 'nc_count', 'sev_uw', 'uw', 'normal', 'acceptable', 'ow', 'obese1', 'obese2', 'obese3'];
         if (!in_array($rank_sort, $valid_sorts)) $rank_sort = 'unit_seq';
 
-        $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+        $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'CMFC'];
         $chq_list_sql = "'" . implode("','", $chq_sub_units) . "'";
         $mapped_unit_sql = "CASE WHEN u.unit IN ($chq_list_sql) THEN 'CHQ' ELSE u.unit END";
 
@@ -345,7 +345,8 @@ if ($is_admin) {
                 'ARDDO' => '#2196f3', // Light Blue
                 'CPPU'  => '#4caf50', // Bright Green
                 'GSO'   => '#795548', // Brown
-                'DEU'   => '#607d8b'  // Blue Gray
+                'DEU'   => '#607d8b', // Blue Gray
+                'TEU'   => '#00897b'  // Teal Dark
             ];
             return $unitMap[$unitName] ?? '#6c757d'; // Default gray
         }
@@ -365,7 +366,7 @@ if ($is_admin) {
         $deficiency_params = [$selected_month, $selected_year];
         if (!empty($selected_unit)) {
             if ($selected_unit === 'CHQ') {
-                $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'TEU', 'CMFC'];
+                $chq_sub_units = ['CHQ', 'ACDEU', 'CIU', 'COMU', 'CIDMU', 'CARMU', 'CPPU', 'CCADU', 'GSO', 'LSO', 'HRAO', 'CPSMU', 'DCBA', 'ODCDO', 'PIO', 'BFO', 'CPHAU', 'OCD', 'OCESPO', 'WCPD', 'HRDD', 'CMFC'];
                 $chq_placeholders = implode(',', array_fill(0, count($chq_sub_units), '?'));
                 $deficiency_sql .= " AND u.unit IN ($chq_placeholders)";
                 $deficiency_params = array_merge($deficiency_params, $chq_sub_units);
@@ -2348,6 +2349,19 @@ function getRankAcronym($rank) {
                                     </select>
                                 </div>
                                 
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase">Year Range</label>
+                                    <select id="extractYear" class="form-select">
+                                        <?php 
+                                            $cur_year = (int)date('Y');
+                                            for ($y = $cur_year; $y >= $cur_year - 5; $y--) {
+                                                $prev = $y - 1;
+                                                echo "<option value=\"$y\">Nov–Dec $prev → Jan–Dec $y</option>";
+                                            }
+                                        ?>
+                                    </select>
+                                </div>
+                                
                                 <!-- Progress Section (hidden initially) -->
                                 <div id="extractProgress" style="display: none;">
                                     <div class="mb-2">
@@ -3525,6 +3539,8 @@ function getRankAcronym($rank) {
     async function startBmiExtraction() {
         const unitSelect = document.getElementById('extractUnit');
         const unit = unitSelect.value;
+        const yearSelect = document.getElementById('extractYear');
+        const selectedYear = yearSelect.value;
         if (!unit) {
             alert('Please select a unit first.');
             return;
@@ -3543,6 +3559,7 @@ function getRankAcronym($rank) {
         document.getElementById('extractStartBtn').disabled = true;
         document.getElementById('extractStartBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> EXTRACTING...';
         unitSelect.disabled = true;
+        yearSelect.disabled = true;
         document.getElementById('extractLogArea').innerHTML = '';
         document.getElementById('extractStatusText').textContent = 'Fetching personnel list...';
         document.getElementById('extractCancelBtn').textContent = 'Abort';
@@ -3551,7 +3568,7 @@ function getRankAcronym($rank) {
             resetExtractUI();
         };
 
-        extractLog('Starting extraction for unit: ' + unit);
+        extractLog('Starting extraction for unit: ' + unit + ' | Year: ' + selectedYear);
 
         try {
             // 1. Fetch personnel for unit
@@ -3592,7 +3609,7 @@ function getRankAcronym($rank) {
                 extractLog('Capturing: ' + safeName + ' (ID: ' + person.id + ')');
 
                 try {
-                    const pdfBlob = await captureEditorForm(person.id, safeName);
+                    const pdfBlob = await captureEditorForm(person.id, safeName, selectedYear);
                     if (pdfBlob) {
                         const fileName = (i + 1).toString().padStart(3, '0') + '_' + safeName.replace(/\s+/g, '_') + '.pdf';
                         pdfFolder.file(fileName, pdfBlob);
@@ -3631,7 +3648,7 @@ function getRankAcronym($rank) {
             // 4. Download
             const now = new Date();
             const dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-            const zipFilename = unit + '_BMI_Forms_' + dateStr + '.zip';
+            const zipFilename = unit + '_BMI_Forms_' + selectedYear + '_' + dateStr + '.zip';
             saveAs(zipBlob, zipFilename);
 
             extractLog('✓ ZIP downloaded: ' + zipFilename);
@@ -3645,6 +3662,7 @@ function getRankAcronym($rank) {
             document.getElementById('extractStartBtn').disabled = false;
             document.getElementById('extractStartBtn').innerHTML = '<i class="bi bi-check-circle me-1"></i> DONE - EXTRACT AGAIN?';
             document.getElementById('extractUnit').disabled = false;
+            document.getElementById('extractYear').disabled = false;
             document.getElementById('extractCancelBtn').textContent = 'Close';
             document.getElementById('extractCancelBtn').onclick = function() {
                 bootstrap.Modal.getInstance(document.getElementById('extractBmiFormsModal')).hide();
@@ -3657,12 +3675,12 @@ function getRankAcronym($rank) {
         }
     }
 
-    function captureEditorForm(userId, personName) {
+    function captureEditorForm(userId, personName, year) {
         return new Promise((resolve, reject) => {
             // Create a hidden iframe to load the editor page
             const iframe = document.createElement('iframe');
             iframe.style.cssText = 'position:fixed; left:-9999px; top:0; width:1400px; height:2000px; border:none; opacity:0;';
-            iframe.src = 'editor.php?edit_user_id=' + userId;
+            iframe.src = 'editor.php?edit_user_id=' + userId + '&extract_year=' + year;
             document.body.appendChild(iframe);
 
             // Set a timeout in case the iframe fails to load
@@ -3782,6 +3800,7 @@ function getRankAcronym($rank) {
         document.getElementById('extractStartBtn').disabled = false;
         document.getElementById('extractStartBtn').innerHTML = '<i class="bi bi-download me-1"></i> START EXTRACTION';
         document.getElementById('extractUnit').disabled = false;
+        document.getElementById('extractYear').disabled = false;
         document.getElementById('extractProgress').style.display = 'none';
         document.getElementById('extractProgressBar').style.width = '0%';
         document.getElementById('extractProgressBar').classList.add('progress-bar-animated');
