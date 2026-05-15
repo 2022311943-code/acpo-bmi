@@ -284,6 +284,7 @@ if ($is_admin) {
                 SELECT user_id, MAX(id) as latest_id
                 FROM health_records
                 WHERE MONTH(date_taken) = ? AND YEAR(date_taken) = ?
+                  AND weight IS NOT NULL AND weight > 0
                 GROUP BY user_id
             ) latest ON u.id = latest.user_id
             LEFT JOIN health_records h ON latest.latest_id = h.id
